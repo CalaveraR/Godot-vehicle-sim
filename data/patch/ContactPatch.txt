@@ -1,0 +1,388 @@
+# res://core/data/patch/ContactPatch.gd
+# =============================================================================
+# ContactPatch – Representação unificada do patch de contato do pneu.
+#
+# Combina:
+#   - Agregados espaciais (centro de pressão, normal, slip, etc.)
+#   - Estado de histerese e memória residual (simula inércia térmica/mecânica)
+#   - Métricas de confiança e penetração
+#   - Propriedades complementares usadas pelo solver (velocidade, yaw rate, temperatura)
+#
+# Uso típico:
+#   1. Construir a partir de amostras com rebuild_from_samples()
+#   2. Atualizar histerese a cada frame com update_hysteresis()
+#   3. Ler forças moduladas via get_effective_grip_factor() ou get_grip_modulation_factors()
+# =============================================================================
+class_name ContactPatch
+extends RefCounted
+
+# --- Constantes de histerese (unidades abstratas) ---------------------------------
+const MAX_STORED_ENERGY := 10.0
+const MIN_HYSTERESIS_FACTOR := 0.7
+const HYSTERESIS_RECOVERY_FAST := 4.0
+const HYSTERESIS_RECOVERY_SLOW := 0.8
+const RESIDUAL_DECAY_RATE := 2.0
+const ENERGY_THRESHOLD := 5.0
+const SLIP_ENERGY_THRESHOLD := 0.1
+
+# --- Constantes para micro‑lag e efeitos direcionais ----------------------------
+const SLIP_LAG_RATE := 8.0
+const RESIDUAL_DIRECTIONAL_NOISE := 0.05
+const CONFIDENCE_HYSTERESIS_MULTIPLIER := 0.5
+
+# --- Dados brutos das amostras --------------------------------------------------
+var samples: Array[TireSample] = []
+
+# --- Agregados calculados no espaço local da roda -------------------------------
+var center_of_pressure_local: Vector3 = Vector3.ZERO
+var average_normal_local: Vector3 = Vector3.UP      # sempre normalizada
+var average_slip_local: Vector2 = Vector2.ZERO
+var lagged_slip_local: Vector2 = Vector2.ZERO       # slip com micro‑lag (feeling)
+
+# --- Métricas escalares ---------------------------------------------------------
+var total_contact_weight: float = 0.0
+var max_penetration: float = 0.0
+var patch_confidence: float = 0.0
+var contributing_samples: int = 0
+
+# --- Estado de histerese --------------------------------------------------------
+var stored_energy: float = 0.0      # energia acumulada (input) – histerese simples
+var residual_energy: float = 0.0    # memória residual pós‑transições bruscas
+var hysteresis_factor: float = 1.0  # [0.7 .. 1.0] – fator de modulação puro
+var last_slip_magnitude: float = 0.0
+
+# --- Propriedades complementares (definidas externamente) -----------------------
+var patch_velocity: Vector3 = Vector3.ZERO      # velocidade do patch (world space)
+var average_pen_vel: float = 0.0                # velocidade média de penetração
+var estimated_yaw_rate: float = 0.0             # taxa de guinada estimada
+var temperature: float = 0.0                   # temperatura derivada/calculada
+
+# --- Controle interno -----------------------------------------------------------
+var timestamp_s: float = 0.0
+var valid: bool = false
+
+# --------------------------------------------------------------------------------
+# Inicialização
+# --------------------------------------------------------------------------------
+func _init(sample_array: Array[TireSample] = [], time_s: float = 0.0) -> void:
+    rebuild_from_samples(sample_array, time_s)
+
+# --------------------------------------------------------------------------------
+# Métodos públicos de atualização
+# --------------------------------------------------------------------------------
+func rebuild_from_samples(new_samples: Array[TireSample], time_s: float) -> void:
+    """Reconstrói completamente o patch a partir de novas amostras."""
+    samples = new_samples
+    timestamp_s = time_s
+    recalculate()
+    lagged_slip_local = average_slip_local
+
+func recalculate() -> void:
+    """Recalcula propriedades agregadas com as amostras atuais."""
+    _recalculate_aggregates()
+
+func update_hysteresis(delta: float, tire_load: float, tire_stiffness: float) -> void:
+    """
+    Atualiza o estado de histerese com base no contato atual.
+    - delta: tempo desde a última atualização
+    - tire_load: carga vertical atual no pneu
+    - tire_stiffness: rigidez vertical do pneu
+    """
+    if not valid:
+        # Sem contato: decaimento mais rápido
+        stored_energy *= exp(-HYSTERESIS_RECOVERY_FAST * delta)
+        residual_energy *= exp(-RESIDUAL_DECAY_RATE * delta)
+        _update_hysteresis_factor()
+        return
+
+    var current_slip_magnitude = get_average_slip_magnitude()
+
+    # 1. ACÚMULO (input) – histerese simples
+    if current_slip_magnitude > SLIP_ENERGY_THRESHOLD:
+        var slip_energy = current_slip_magnitude * tire_load * delta
+        stored_energy += slip_energy
+
+    if max_penetration > 0.0:
+        var deformation_energy = max_penetration * tire_stiffness * delta
+        stored_energy += deformation_energy
+
+    # 2. Memória de energia residual (transições bruscas)
+    var slip_change = abs(current_slip_magnitude - last_slip_magnitude)
+    if slip_change > 0.2:
+        residual_energy += slip_change * tire_load * 0.5
+
+    # Saturação
+    stored_energy = min(stored_energy, MAX_STORED_ENERGY)
+
+    # 3. RECUPERAÇÃO (decay exponencial)
+    var decay_rate = HYSTERESIS_RECOVERY_SLOW if stored_energy > ENERGY_THRESHOLD else HYSTERESIS_RECOVERY_FAST
+    stored_energy *= exp(-decay_rate * delta)
+
+    # 4. Decay da memória residual
+    residual_energy *= exp(-RESIDUAL_DECAY_RATE * delta)
+
+    # 5. Micro‑lag no slip
+    _apply_slip_lag(delta)
+
+    # 6. Ruído direcional baseado na energia residual
+    _apply_directional_noise()
+
+    # 7. Atualiza fator de histerese
+    _update_hysteresis_factor()
+
+    # 8. Guarda slip para o próximo frame
+    last_slip_magnitude = current_slip_magnitude
+
+func reset_hysteresis() -> void:
+    """
+    Reseta completamente o estado de histerese.
+    AVISO: Chamar apenas em teleporte explícito para evitar popping.
+    """
+    stored_energy = 0.0
+    residual_energy = 0.0
+    hysteresis_factor = 1.0
+    last_slip_magnitude = 0.0
+    lagged_slip_local = average_slip_local
+
+# --------------------------------------------------------------------------------
+# Métodos internos de agregação
+# --------------------------------------------------------------------------------
+func _recalculate_aggregates() -> void:
+    """Calcula médias ponderadas a partir das amostras válidas."""
+    valid = false
+
+    if samples.is_empty():
+        _reset_to_default()
+        return
+
+    var weighted_pos = Vector3.ZERO
+    var weighted_normal = Vector3.ZERO
+    var weighted_slip = Vector2.ZERO
+
+    total_contact_weight = 0.0
+    max_penetration = 0.0
+    patch_confidence = 0.0
+    contributing_samples = 0
+
+    for sample in samples:
+        if not sample.valid or sample.penetration <= 0.0:
+            continue
+
+        var sample_weight = sample.penetration * sample.confidence
+        if sample_weight <= 0.0:
+            continue
+
+        weighted_pos += sample.contact_pos_local * sample_weight
+        weighted_normal += sample.contact_normal_local * sample_weight
+        weighted_slip += sample.slip_vector * sample_weight
+
+        total_contact_weight += sample_weight
+        max_penetration = max(max_penetration, sample.penetration)
+        patch_confidence += sample.confidence
+        contributing_samples += 1
+
+    if total_contact_weight <= 0.0 or contributing_samples == 0:
+        _reset_to_default()
+        return
+
+    center_of_pressure_local = weighted_pos / total_contact_weight
+    average_normal_local = (weighted_normal / total_contact_weight).normalized()
+    average_slip_local = weighted_slip / total_contact_weight
+    patch_confidence /= float(contributing_samples)
+
+    valid = true
+
+func _reset_to_default() -> void:
+    """Reset interno dos agregados (não mexe na histerese)."""
+    center_of_pressure_local = Vector3.ZERO
+    average_normal_local = Vector3.UP
+    average_slip_local = Vector2.ZERO
+    lagged_slip_local = Vector2.ZERO
+
+    total_contact_weight = 0.0
+    max_penetration = 0.0
+    patch_confidence = 0.0
+    contributing_samples = 0
+    valid = false
+
+# --------------------------------------------------------------------------------
+# Efeitos de feeling (micro‑lag e ruído)
+# --------------------------------------------------------------------------------
+func _apply_slip_lag(delta: float) -> void:
+    """Aplica micro‑lag exponencial ao slip para sensação de inércia."""
+    if valid and average_slip_local.length_squared() > 0.0:
+        var lag_weight = exp(-SLIP_LAG_RATE * delta)
+        lagged_slip_local = lagged_slip_local.lerp(average_slip_local, lag_weight)
+    else:
+        lagged_slip_local = average_slip_local
+
+func _apply_directional_noise() -> void:
+    """Adiciona ruído direcional baseado na energia residual."""
+    if valid and residual_energy > 0.0 and lagged_slip_local.length_squared() > 0.0:
+        var directional_noise = (residual_energy / MAX_STORED_ENERGY) * RESIDUAL_DIRECTIONAL_NOISE
+        var orthogonal_component = lagged_slip_local.orthogonal() * directional_noise
+        lagged_slip_local += orthogonal_component
+
+# --------------------------------------------------------------------------------
+# Cálculo do fator de histerese
+# --------------------------------------------------------------------------------
+func _update_hysteresis_factor() -> void:
+    """Converte energia armazenada em fator de histerese [0.7..1.0]."""
+    var total_energy = stored_energy + residual_energy * 0.3
+    var normalized_energy = clamp(total_energy / MAX_STORED_ENERGY, 0.0, 1.0)
+    hysteresis_factor = lerp(1.0, MIN_HYSTERESIS_FACTOR, sqrt(normalized_energy))
+
+# --------------------------------------------------------------------------------
+# Métodos utilitários (conversão, debug)
+# --------------------------------------------------------------------------------
+func get_center_of_pressure_ws(tire_transform: Transform3D) -> Vector3:
+    """Centro de pressão em world‑space (apenas debug)."""
+    return tire_transform * center_of_pressure_local
+
+func get_average_normal_ws(tire_transform: Transform3D) -> Vector3:
+    """Normal média em world‑space (apenas debug)."""
+    return tire_transform.basis * average_normal_local
+
+func get_average_slip_magnitude() -> float:
+    """Magnitude do slip médio (RAW, sem lag)."""
+    return average_slip_local.length()
+
+func get_lagged_slip_magnitude() -> float:
+    """Magnitude do slip com micro‑lag."""
+    return lagged_slip_local.length()
+
+func get_average_slip_direction() -> Vector2:
+    """Direção normalizada do slip médio."""
+    return average_slip_local.normalized() if average_slip_local.length_squared() > 0.0 else Vector2.ZERO
+
+func get_lagged_slip_direction() -> Vector2:
+    """Direção normalizada do slip com lag."""
+    return lagged_slip_local.normalized() if lagged_slip_local.length_squared() > 0.0 else Vector2.ZERO
+
+func get_hysteresis_debug_info() -> Dictionary:
+    """Informações detalhadas da histerese para debug."""
+    return {
+        "stored_energy": stored_energy,
+        "residual_energy": residual_energy,
+        "hysteresis_factor": hysteresis_factor,
+        "last_slip_mag": last_slip_magnitude,
+        "lagged_slip_mag": get_lagged_slip_magnitude(),
+        "debug_effective": get_effective_grip_factor()
+    }
+
+# --------------------------------------------------------------------------------
+# Consultas e propriedades computadas
+# --------------------------------------------------------------------------------
+func get_active_samples() -> Array[TireSample]:
+    """Retorna apenas as amostras que contribuíram para o patch."""
+    var active: Array[TireSample] = []
+    for sample in samples:
+        if sample.valid and sample.penetration > 0.0:
+            active.append(sample)
+    return active
+
+func get_sample_count() -> int:
+    """Número total de amostras (incluindo inválidas)."""
+    return samples.size()
+
+func is_valid() -> bool:
+    """Patch contém dados válidos para cálculos físicos."""
+    return valid and contributing_samples > 0
+
+func get_timestamp() -> float:
+    """Timestamp da última reconstrução."""
+    return timestamp_s
+
+# --------------------------------------------------------------------------------
+# Integração com o solver (modulação de grip)
+# --------------------------------------------------------------------------------
+func get_effective_grip_factor() -> float:
+    """
+    Retorna fator de grip combinando histerese e confiança.
+    """
+    var confidence_factor = lerp(CONFIDENCE_HYSTERESIS_MULTIPLIER, 1.0, patch_confidence)
+    return hysteresis_factor * confidence_factor
+
+func get_grip_modulation_factors() -> Dictionary:
+    """
+    Retorna fatores separados para o solver combinar apropriadamente.
+    """
+    return {
+        "hysteresis": hysteresis_factor,
+        "confidence": patch_confidence,
+        "confidence_factor": lerp(CONFIDENCE_HYSTERESIS_MULTIPLIER, 1.0, patch_confidence),
+        "effective": get_effective_grip_factor(),
+        "lagged_slip": lagged_slip_local,
+        "stored_energy": stored_energy,
+        "residual_energy": residual_energy
+    }
+
+func get_thermal_state() -> Dictionary:
+    """
+    Estado térmico normalizado [0..1] e temperatura derivada.
+    Retorna dicionário com:
+      - stored_energy: energia acumulada (unidades abstratas)
+      - temperature:   valor de temperatura (pode ser setado externamente)
+    """
+    return {
+        "stored_energy": stored_energy,
+        "temperature": temperature
+    }
+
+# --------------------------------------------------------------------------------
+# Debug e representação textual
+# --------------------------------------------------------------------------------
+func _to_string() -> String:
+    return "ContactPatch(valid=%s, samples=%d/%d, conf=%.2f, hyst=%.2f, eff=%.2f, E=%.2f/%.2f)" % [
+        valid,
+        contributing_samples,
+        samples.size(),
+        patch_confidence,
+        hysteresis_factor,
+        get_effective_grip_factor(),
+        stored_energy,
+        residual_energy
+    ]
+
+func get_debug_info() -> Dictionary:
+    """Informações completas para debug."""
+    var factors = get_grip_modulation_factors()
+    return {
+        "valid": valid,
+        "timestamp": timestamp_s,
+        "samples_total": samples.size(),
+        "samples_contributing": contributing_samples,
+        "center_local": center_of_pressure_local,
+        "normal_local": average_normal_local,
+        "slip_raw": average_slip_local,
+        "slip_lagged": lagged_slip_local,
+        "slip_raw_mag": get_average_slip_magnitude(),
+        "slip_lag_mag": get_lagged_slip_magnitude(),
+        "total_weight": total_contact_weight,
+        "max_penetration": max_penetration,
+        "confidence": patch_confidence,
+        "hysteresis": get_hysteresis_debug_info(),
+        "grip_factors": factors,
+        "thermal_state": get_thermal_state(),
+        "hysteresis_simple": {
+            "stored_energy": stored_energy,
+            "recovery_rate": HYSTERESIS_RECOVERY_SLOW if stored_energy > ENERGY_THRESHOLD else HYSTERESIS_RECOVERY_FAST,
+            "factor": hysteresis_factor
+        },
+        "residual_memory": {
+            "energy": residual_energy,
+            "decay_rate": RESIDUAL_DECAY_RATE,
+            "directional_noise": (residual_energy / MAX_STORED_ENERGY) * RESIDUAL_DIRECTIONAL_NOISE
+        },
+        "patch_velocity": patch_velocity,
+        "average_pen_vel": average_pen_vel,
+        "estimated_yaw_rate": estimated_yaw_rate,
+        "temperature": temperature
+    }
+
+func reset() -> void:
+    """Reseta o patch para estado inicial (uso com pooling)."""
+    samples.clear()
+    timestamp_s = 0.0
+    _reset_to_default()
+    # NOTA: histerese NÃO é resetada aqui – use reset_hysteresis() para teleporte
