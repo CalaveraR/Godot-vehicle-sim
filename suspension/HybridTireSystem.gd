@@ -19,6 +19,7 @@ var wheel_dynamics: WheelDynamics
 onready var raycast_root = $Raycasts
 onready var clipping_area = $Area3D
 onready var curve_2d = preload("res://default_tire_profile.tres") as Curve2D
+var profile_mesh_builder: TireProfileMeshBuilder = TireProfileMeshBuilder.new()
 
 var max_penetration_depth: float = 0.05
 var contact_points = []
@@ -76,50 +77,16 @@ func _generate_clipping_mesh():
     mesh_instance.name = "ClippingMesh"
     clipping_area.add_child(mesh_instance)
 
-    var mesh = _create_tire_profile_mesh()
+    var mesh = profile_mesh_builder.build_profile_mesh(
+        curve_2d,
+        tire_width,
+        tire_diameter,
+        rim_diameter,
+        vertical_zones,
+        radial_zones
+    )
     mesh_instance.mesh = mesh
     clipping_area.translation.y = -max_suspension_travel / 2.0
-
-func _create_tire_profile_mesh() -> ArrayMesh:
-    var surface_tool = SurfaceTool.new()
-    surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-
-    var profile_points = []
-    var use_curve_profile = curve_2d and curve_2d.get_point_count() >= 2
-    var baked_len = curve_2d.get_baked_length() if use_curve_profile else 0.0
-
-    for i in vertical_zones:
-        var t = float(i) / float(max(vertical_zones - 1, 1))
-        if use_curve_profile and baked_len > 0.0:
-            var curve_pt: Vector2 = curve_2d.sample_baked(t * baked_len)
-            profile_points.append(Vector3(curve_pt.x, curve_pt.y, 0.0))
-        else:
-            # fallback procedural para nao quebrar pneus sem curva configurada
-            var x = lerp(-tire_width / 2.0, tire_width / 2.0, t)
-            var y = sin(t * PI) * (tire_diameter - rim_diameter) / 2.0
-            profile_points.append(Vector3(x, y, 0.0))
-
-    var angle_step = TAU / radial_zones
-    for radial_idx in radial_zones:
-        var angle = radial_idx * angle_step
-        var next_angle = (radial_idx + 1) * angle_step
-
-        for vert_idx in range(vertical_zones - 1):
-            var p1 = profile_points[vert_idx].rotated(Vector3.UP, angle)
-            var p2 = profile_points[vert_idx + 1].rotated(Vector3.UP, angle)
-            var p3 = profile_points[vert_idx + 1].rotated(Vector3.UP, next_angle)
-            var p4 = profile_points[vert_idx].rotated(Vector3.UP, next_angle)
-
-            surface_tool.add_vertex(p1)
-            surface_tool.add_vertex(p2)
-            surface_tool.add_vertex(p3)
-
-            surface_tool.add_vertex(p1)
-            surface_tool.add_vertex(p3)
-            surface_tool.add_vertex(p4)
-
-    var array_mesh = surface_tool.commit()
-    return array_mesh
 
 func update_contact_data():
     contact_points.clear()
