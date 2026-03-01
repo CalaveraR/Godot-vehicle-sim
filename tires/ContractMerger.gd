@@ -1,6 +1,6 @@
 # res://core/contracts/ContractMerger.gd
 class_name ContractMerger
-extends RefCounted
+extends Node
 
 # ------------------------------------------------------------------------------
 # Enums
@@ -57,6 +57,8 @@ var _mode_accum: PackedFloat32Array      # acumulador de pesos por modo
 var _authority_accum: PackedFloat32Array # acumulador de pesos por autoridade
 var _data_accum: Dictionary              # chave -> {sum: float, weight: float}
 var _safety_flags_pool: Array[String]    # buffer para coleta de flags
+
+signal contracts_merged(result: Dictionary)
 
 func _init() -> void:
 	# Pré‑aloca os buffers de acumulação de modo/autoridade
@@ -130,6 +132,26 @@ func force_recovery(now_ms: int) -> NeutralInfluenceContract:
 # ------------------------------------------------------------------------------
 # Configuração dinâmica
 # ------------------------------------------------------------------------------
+func merge_contracts_for_owner(owner_id: String, contracts: Array, now_ms: int = -1) -> Dictionary:
+	if now_ms < 0:
+		now_ms = Time.get_ticks_msec()
+
+	var typed_contracts: Array[NeutralInfluenceContract] = []
+	for contract in contracts:
+		if contract is NeutralInfluenceContract:
+			typed_contracts.append(contract)
+
+	var merged_contract: NeutralInfluenceContract = merge(typed_contracts, now_ms)
+	var result := {
+		"owner_id": owner_id,
+		"contract_count": typed_contracts.size(),
+		"merged_contract": merged_contract.get_contract_summary() if merged_contract else {},
+		"merge_strategy": merge_strategy,
+		"timestamp": now_ms
+	}
+	contracts_merged.emit(result)
+	return result
+
 func set_strategy(strategy: MergeStrategy) -> void:
 	merge_strategy = strategy
 
