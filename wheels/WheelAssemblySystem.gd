@@ -27,7 +27,7 @@ onready var suspension: SuspensionSystem = $SuspensionSystem
 onready var tire: TireSystem = $TireSystem
 onready var dynamics: WheelDynamics = $WheelDynamics
 onready var brake: BrakeSystem = $BrakeSystem
-onready var hybrid_tire: HybridTireSystem = $HybridTireSystem
+@onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator") if has_node("TireRuntimeCoordinator") else get_node_or_null("HybridTireSystem")
 
 func _ready():
     calculate_properties()
@@ -91,10 +91,10 @@ func apply_to_systems():
         tire.base_carcass_stiffness = 10000.0 * (tire_width / 0.2)
         tire.original_pressure = original_pressure
     
-    if hybrid_tire:
-        hybrid_tire.tire_width = tire_width
-        hybrid_tire.tire_diameter = overall_diameter
-        hybrid_tire.rim_diameter = rim_diameter
+    if tire_runtime:
+        tire_runtime.tire_width = tire_width
+        tire_runtime.tire_diameter = overall_diameter
+        tire_runtime.rim_diameter = rim_diameter
     
     if dynamics:
         dynamics.wheel_mass = unsprung_mass

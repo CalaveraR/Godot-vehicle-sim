@@ -10,7 +10,7 @@ onready var dynamics = $WheelDynamics
 onready var flat_spot = $FlatSpotSystem
 onready var suspension_response = $SuspensionResponseSystem
 onready var wheel_assembly = $WheelAssemblySystem
-onready var hybrid_tire = $HybridTireSystem
+@onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator") if has_node("TireRuntimeCoordinator") else get_node_or_null("HybridTireSystem")
 
 var current_engine_torque = 0.0
 var gear = Gear.DRIVE
@@ -36,12 +36,14 @@ func _physics_process(delta):
     suspension_response.calculate_dynamic_response(car_body, suspension.total_load, lateral_g)
     suspension_response.apply_response(suspension)
     
-    hybrid_tire.update_contact_data()
-    var unified_data = hybrid_tire.calculate_unified_data()
-    
-    hybrid_tire.apply_to_suspension(unified_data)
-    hybrid_tire.apply_to_wheel(unified_data)
-    hybrid_tire.apply_to_tire_system(unified_data)
+    var unified_data: Dictionary = {}
+    if tire_runtime:
+        tire_runtime.update_contact_data()
+        unified_data = tire_runtime.calculate_unified_data()
+
+        tire_runtime.apply_to_suspension(unified_data)
+        tire_runtime.apply_to_wheel(unified_data)
+        tire_runtime.apply_to_tire_system(unified_data)
     
     var flat_spot_depth = flat_spot.get_flat_spot_depth()
     suspension.update_effective_radius(flat_spot_depth, unified_data.get("max_pressure", 0.0))
