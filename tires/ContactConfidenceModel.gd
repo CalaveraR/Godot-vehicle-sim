@@ -1,0 +1,429 @@
+# ContactConfidenceModel - Sistema Unificado de Avaliação de Confiança de Contato
+# ==============================================================================
+# PROPÓSITO:
+#   Qualificar a confiabilidade dos dados de contato entre superfícies, 
+#   combinando múltiplas fontes (shader, raycast) e fatores de estabilidade
+#   (temporal, espacial, física). A métrica resultante serve para decisões
+#   de regime de simulação, NÃO para cálculo de forças físicas.
+#
+# UNIFICAÇÃO:
+#   - model/ContactConfidence.gd (qualidade dos dados)
+#   - model/ConfidenceCalculator.gd (estabilidade do patch)
+#
+# MOTIVAÇÃO:
+#   Evitar que raycast_confidence = 0 anule toda a confiança via multiplicação
+#   (problema de "gate"). O modo padrão (use_multiply = false) usa MIN
+#   ou combinação não‑multiplicativa; quando use_multiply = true, as fontes
+#   primárias são combinadas por MAX antes da multiplicação.
+#
+# RESPONSABILIDADE DO SOLVER:
+#   Interpretar combined_confidence e thresholds para selecionar regime físico.
+# ==============================================================================
+class_name ContactConfidenceModel
+extends RefCounted
+
+
+# ------------------------------------------------------------------------------
+# CONFIGURAÇÃO
+# ------------------------------------------------------------------------------
+
+## Se true, utiliza combinação multiplicativa com MAX nas fontes primárias.
+## Se false, utiliza MIN (conservador).
+@export var use_multiply: bool = false
+
+
+# ------------------------------------------------------------------------------
+# ESTADO INTERNO (FONTES PRIMÁRIAS E ESTABILIDADE)
+# ------------------------------------------------------------------------------
+
+# Fontes primárias de dados
+var shader_confidence: float = 0.0      # Qualidade do dado vindo do shader (0..1)
+var raycast_confidence: float = 0.0     # Qualidade do dado vindo do raycast (0..1)
+
+# Fatores de estabilidade
+var temporal_consistency: float = 1.0   # Estabilidade normal entre frames (0..1)
+var spatial_coherence: float = 1.0      # Estabilidade posicional entre frames (0..1)
+var physical_coherence: float = 1.0     # Coerência física (penetração, carga, slip) (0..1)
+
+# Métrica agregada
+var combined_confidence: float = 0.0    # Confiança final calculada
+var valid: bool = false                # Pelo menos uma fonte primária > 0
+
+# Histórico temporal (para estabilidade)
+var last_patch: ContactPatch = null    # Último patch processado
+var _cached_for_patch: ContactPatch = null  # Cache simples por patch
+var _cached_confidence: float = 0.0
+
+
+# ------------------------------------------------------------------------------
+# CONSTANTES DE ESTABILIDADE (provenientes de ConfidenceCalculator)
+# ------------------------------------------------------------------------------
+const MAX_NORMAL_DELTA := deg_to_rad(15.0)   # Variação máxima da normal (rad)
+const MAX_PATCH_JUMP := 0.1                 # Pulo máximo do patch (m)
+const MIN_PENETRATION := 0.001             # Penetração mínima válida (m)
+const MIN_LOAD := 10.0                    # Carga mínima válida (N)
+const CONF_MIN := 0.7                    # Limiar para regime STANDARD
+const CONF_DEGRADED := 0.4              # Limiar para regime DEGRADED
+
+
+# ==============================================================================
+# INICIALIZAÇÃO E CONFIGURAÇÃO
+# ==============================================================================
+
+func _init(
+    shader_conf: float = 0.0,
+    ray_conf: float = 0.0,
+    temporal: float = 1.0,
+    spatial: float = 1.0,
+    physical: float = 1.0
+) -> void:
+    """Inicializa o modelo com valores opcionais."""
+    set_values(shader_conf, ray_conf, temporal, spatial, physical)
+
+
+func set_values(
+    shader_conf: float,
+    ray_conf: float,
+    temporal: float,
+    spatial: float,
+    physical: float
+) -> void:
+    """Define todos os valores simultaneamente e recalcula a confiança."""
+    shader_confidence = clamp(shader_conf, 0.0, 1.0)
+    raycast_confidence = clamp(ray_conf, 0.0, 1.0)
+    temporal_consistency = clamp(temporal, 0.0, 1.0)
+    spatial_coherence = clamp(spatial, 0.0, 1.0)
+    physical_coherence = clamp(physical, 0.0, 1.0)
+    
+    valid = (shader_confidence > 0.0 or raycast_confidence > 0.0)
+    _recalculate()
+
+
+func set_combine_mode(multiply_mode: bool) -> void:
+    """Altera o modo de combinação e recalcula."""
+    use_multiply = multiply_mode
+    _recalculate()
+
+
+# ==============================================================================
+# CÁLCULO INTERNO DA CONFIANÇA COMBINADA
+# ==============================================================================
+
+func _recalculate() -> void:
+    """Recalcula combined_confidence com base nos valores atuais e no modo."""
+    if not valid:
+        combined_confidence = 0.0
+        return
+    
+    # 1. Combina fontes primárias + fatores temporais/espaciais
+    var base = combine(
+        shader_confidence,
+        raycast_confidence,
+        temporal_consistency,
+        spatial_coherence
+    )
+    
+    # 2. Incorpora o fator de coerência física
+    if use_multiply:
+        combined_confidence = base * physical_coherence
+    else:
+        combined_confidence = min(base, physical_coherence)
+    
+    combined_confidence = clamp(combined_confidence, 0.0, 1.0)
+
+
+## Combina quatro fatores de confiança segundo o modo selecionado.
+## Este método pode ser usado externamente para avaliações rápidas.
+func combine(
+    shader_conf: float,
+    ray_conf: float,
+    temporal: float,
+    spatial: float
+) -> float:
+    """Combina quatro fontes e retorna um valor entre 0 e 1.
+    
+    - Se use_multiply == true : primary = max(shader, ray); resultado = primary * temporal * spatial
+    - Se use_multiply == false: resultado = min(shader, ray, temporal, spatial)
+    """
+    if use_multiply:
+        var primary = max(shader_conf, ray_conf)
+        return clamp(primary * temporal * spatial, 0.0, 1.0)
+    else:
+        return clamp(min(shader_conf, ray_conf, temporal, spatial), 0.0, 1.0)
+
+
+# ==============================================================================
+# ATUALIZAÇÕES PARCIAIS
+# ==============================================================================
+
+func update_shader_confidence(value: float) -> void:
+    shader_confidence = clamp(value, 0.0, 1.0)
+    valid = (shader_confidence > 0.0 or raycast_confidence > 0.0)
+    _recalculate()
+
+
+func update_raycast_confidence(value: float) -> void:
+    raycast_confidence = clamp(value, 0.0, 1.0)
+    valid = (shader_confidence > 0.0 or raycast_confidence > 0.0)
+    _recalculate()
+
+
+func update_temporal_consistency(value: float) -> void:
+    temporal_consistency = clamp(value, 0.0, 1.0)
+    _recalculate()
+
+
+func update_spatial_coherence(value: float) -> void:
+    spatial_coherence = clamp(value, 0.0, 1.0)
+    _recalculate()
+
+
+func update_physical_coherence(value: float) -> void:
+    physical_coherence = clamp(value, 0.0, 1.0)
+    _recalculate()
+
+
+# ==============================================================================
+# DEGRADAÇÃO CONTROLADA
+# ==============================================================================
+
+func decay(factor: float) -> void:
+    """Reduz gradualmente os fatores temporais, espaciais e físicos."""
+    temporal_consistency = clamp(temporal_consistency * factor, 0.0, 1.0)
+    spatial_coherence = clamp(spatial_coherence * factor, 0.0, 1.0)
+    physical_coherence = clamp(physical_coherence * factor, 0.0, 1.0)
+    _recalculate()
+
+
+# ==============================================================================
+# GESTÃO DE ESTADO
+# ==============================================================================
+
+func reset() -> void:
+    """Reinicia completamente o modelo."""
+    shader_confidence = 0.0
+    raycast_confidence = 0.0
+    temporal_consistency = 1.0
+    spatial_coherence = 1.0
+    physical_coherence = 1.0
+    combined_confidence = 0.0
+    valid = false
+    last_patch = null
+    clear_cache()
+
+
+func invalidate() -> void:
+    """Marca explicitamente que não há dados válidos."""
+    valid = false
+    combined_confidence = 0.0
+
+
+func clear_cache() -> void:
+    _cached_for_patch = null
+    _cached_confidence = 0.0
+
+
+func reset_history() -> void:
+    """Reseta o histórico temporal (para início de novo contato)."""
+    last_patch = null
+    clear_cache()
+
+
+# ==============================================================================
+# INTERFACE DE CONSULTA
+# ==============================================================================
+
+func is_reliable(threshold: float = 0.5) -> bool:
+    return valid and combined_confidence >= threshold
+
+
+func get_confidence() -> float:
+    return combined_confidence
+
+
+func is_valid() -> bool:
+    return valid
+
+
+# ==============================================================================
+# MÉTRICAS DERIVADAS
+# ==============================================================================
+
+func get_primary_confidence() -> float:
+    """Retorna a maior confiança entre as fontes primárias."""
+    return max(shader_confidence, raycast_confidence)
+
+
+func get_stability_score() -> float:
+    """Média dos fatores de estabilidade (temporal, espacial, físico)."""
+    return (temporal_consistency + spatial_coherence + physical_coherence) / 3.0
+
+
+func get_weakest_factor() -> String:
+    """Identifica o fator com menor valor."""
+    var factors = {
+        "shader": shader_confidence,
+        "raycast": raycast_confidence,
+        "temporal": temporal_consistency,
+        "spatial": spatial_coherence,
+        "physical": physical_coherence
+    }
+    var weakest_name = "shader"
+    var weakest_value = 1.0
+    for name in factors:
+        if factors[name] < weakest_value:
+            weakest_value = factors[name]
+            weakest_name = name
+    return weakest_name
+
+
+# ==============================================================================
+# CÁLCULO BASEADO EM ContactPatch (INTEGRAÇÃO ConfidenceCalculator)
+# ==============================================================================
+
+## Processa um ContactPatch, atualiza os fatores de estabilidade e retorna
+## a confiança combinada.
+func compute_from_patch(patch: ContactPatch, delta: float) -> float:
+    if _cached_for_patch == patch:
+        return _cached_confidence
+    
+    # Atualiza fatores baseados no patch
+    temporal_consistency = _compute_temporal_stability(patch, delta)
+    spatial_coherence = _compute_spatial_stability(patch, delta)
+    physical_coherence = _compute_physical_coherence(patch, delta)
+    
+    # Assume que o patch em si fornece dados primários válidos
+    # (shader/raycast permanecem inalterados; o modelo pode ser usado híbrido)
+    if shader_confidence == 0.0 and raycast_confidence == 0.0:
+        # Se não há fontes primárias, o patch torna-se a única fonte
+        valid = true   # pelo menos uma fonte (o patch) é considerada
+    
+    _recalculate()
+    
+    last_patch = patch
+    _cached_for_patch = patch
+    _cached_confidence = combined_confidence
+    return combined_confidence
+
+
+func _compute_temporal_stability(patch: ContactPatch, delta: float) -> float:
+    if last_patch == null:
+        return 1.0
+    var normal_delta = patch.normal.angle_to(last_patch.normal)
+    return _smoothstep(MAX_NORMAL_DELTA, 0.0, normal_delta)
+
+
+func _compute_spatial_stability(patch: ContactPatch, delta: float) -> float:
+    if last_patch == null:
+        return 1.0
+    var pos_delta = patch.position.distance_to(last_patch.position)
+    return _smoothstep(MAX_PATCH_JUMP, 0.0, pos_delta)
+
+
+func _compute_physical_coherence(patch: ContactPatch, delta: float) -> float:
+    var conf = 1.0
+    
+    if patch.penetration < MIN_PENETRATION:
+        conf = 0.3
+    if patch.load < MIN_LOAD:
+        conf = 0.5   # Nota: sobrescreveria 0.3; lógica original usa atribuições sucessivas
+    if patch.longitudinal_speed < 1.0 and patch.slip_ratio > 0.5:
+        conf = 0.4
+    if patch.stiffness > 0:
+        var expected_penetration = patch.load / patch.stiffness
+        var ratio = patch.penetration / expected_penetration
+        if ratio < 0.5 or ratio > 2.0:
+            conf = 0.6
+    
+    return clamp(conf, 0.0, 1.0)
+
+
+func _smoothstep(edge0: float, edge1: float, x: float) -> float:
+    var t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+# ==============================================================================
+# DECISÃO DE REGIME FÍSICO
+# ==============================================================================
+
+func should_use_fallback(patch: ContactPatch, delta: float) -> bool:
+    return compute_from_patch(patch, delta) < CONF_MIN
+
+
+func get_regime(patch: ContactPatch, delta: float) -> String:
+    var conf = compute_from_patch(patch, delta)
+    if conf >= CONF_MIN:
+        return "STANDARD"
+    elif conf >= CONF_DEGRADED:
+        return "DEGRADED"
+    else:
+        return "FALLBACK"
+
+
+# ==============================================================================
+# DIAGNÓSTICO E DEBUG
+# ==============================================================================
+
+func get_debug_info() -> Dictionary:
+    return {
+        "valid": valid,
+        "use_multiply": use_multiply,
+        "shader_confidence": shader_confidence,
+        "raycast_confidence": raycast_confidence,
+        "temporal_consistency": temporal_consistency,
+        "spatial_coherence": spatial_coherence,
+        "physical_coherence": physical_coherence,
+        "combined_confidence": combined_confidence,
+        "last_patch": last_patch
+    }
+
+
+func get_summary() -> Dictionary:
+    return {
+        "valid": valid,
+        "combined": combined_confidence,
+        "mode": "MULTIPLY" if use_multiply else "MIN"
+    }
+
+
+func _to_string() -> String:
+    return "ContactConfidenceModel(valid=%s, combined=%.2f, mode=%s)" % [
+        valid,
+        combined_confidence,
+        "MULTIPLY" if use_multiply else "MIN"
+    ]
+
+
+# ==============================================================================
+# UTILITÁRIOS AVANÇADOS
+# ==============================================================================
+
+func clone() -> ContactConfidenceModel:
+    """Cria uma cópia independente da instância atual."""
+    var new_model = ContactConfidenceModel.new(
+        shader_confidence,
+        raycast_confidence,
+        temporal_consistency,
+        spatial_coherence,
+        physical_coherence
+    )
+    new_model.set_combine_mode(use_multiply)
+    new_model.valid = valid
+    new_model.combined_confidence = combined_confidence
+    # Não copia last_patch/cache por simplicidade
+    return new_model
+
+
+func lerp_from(other: ContactConfidenceModel, weight: float) -> void:
+    """Interpola linearmente os valores a partir de outro modelo."""
+    if not other.valid:
+        return
+    shader_confidence = lerp(shader_confidence, other.shader_confidence, weight)
+    raycast_confidence = lerp(raycast_confidence, other.raycast_confidence, weight)
+    temporal_consistency = lerp(temporal_consistency, other.temporal_consistency, weight)
+    spatial_coherence = lerp(spatial_coherence, other.spatial_coherence, weight)
+    physical_coherence = lerp(physical_coherence, other.physical_coherence, weight)
+    
+    valid = (shader_confidence > 0.0 or raycast_confidence > 0.0)
+    _recalculate()
