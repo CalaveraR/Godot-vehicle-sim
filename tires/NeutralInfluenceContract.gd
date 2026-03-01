@@ -283,6 +283,10 @@ func to_dict() -> Dictionary:
         "safety_flags": self.safety_flags.duplicate(true)
     }
 
+func get_contract_summary() -> Dictionary:
+    """Alias de compatibilidade com APIs antigas."""
+    return to_dict()
+
 # ========================================================================== #
 # DIAGNÓSTICO E FILOSOFIA
 # ========================================================================== #
