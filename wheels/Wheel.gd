@@ -3,13 +3,13 @@ extends Node
 
 enum Gear { REVERSE = -1, NEUTRAL = 0, DRIVE = 1 }
 
-onready var suspension = $SuspensionSystem
-onready var tire = $TireSystem
-onready var brake = $BrakeSystem
-onready var dynamics = $WheelDynamics
-onready var flat_spot = $FlatSpotSystem
-onready var suspension_response = $SuspensionResponseSystem
-onready var wheel_assembly = $WheelAssemblySystem
+@onready var suspension = $SuspensionSystem
+@onready var tire = $TireSystem
+@onready var brake = $BrakeSystem
+@onready var dynamics = $WheelDynamics
+@onready var flat_spot = $FlatSpotSystem
+@onready var suspension_response = $SuspensionResponseSystem
+@onready var wheel_assembly = $WheelAssemblySystem
 @onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator") if has_node("TireRuntimeCoordinator") else get_node_or_null("HybridTireSystem")
 
 var current_engine_torque = 0.0
@@ -121,7 +121,7 @@ func sync_with_surface():
             tire.set_ground_grip(surface_data.grip_factor)
 
 func process_effects_and_signals(delta):
-    if tire.breakaway_counter > 0.3 && abs(dynamics.wheel_slip_angle) > 0.5:
+    if tire.breakaway_counter > 0.3 and abs(dynamics.wheel_slip_angle) > 0.5:
         emit_signal("tire_screech", min(tire.breakaway_counter, 1.0))
     
     var vibration = flat_spot.get_vibration()
@@ -136,7 +136,7 @@ func update_thermal_deformation(delta: float):
         thermal_deformation = (tire.surface_temperature - 100) * 0.0001
 
 func update_tire_bubble(delta: float):
-    if tire.surface_temperature > 150 && randf() < 0.01:
+    if tire.surface_temperature > 150 and randf() < 0.01:
         tire_bubble = min(1.0, tire_bubble + 0.05)
     elif tire_bubble > 0:
         tire_bubble = max(0.0, tire_bubble - 0.01 * delta)

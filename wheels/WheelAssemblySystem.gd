@@ -3,13 +3,13 @@ extends Node
 
 enum SpecificationMode {NORMAL, SPECIAL}
 
-export(SpecificationMode) var spec_mode = SpecificationMode.NORMAL
-export var normal_width := 195.0
-export var normal_aspect_ratio := 60.0
-export var normal_rim_diameter := 15.0
-export var special_width := 305.0
-export var special_diameter := 720.0
-export var special_rim_diameter := 18.0
+@export var spec_mode: SpecificationMode = SpecificationMode.NORMAL
+@export var normal_width: float = 195.0
+@export var normal_aspect_ratio: float = 60.0
+@export var normal_rim_diameter: float = 15.0
+@export var special_width: float = 305.0
+@export var special_diameter: float = 720.0
+@export var special_rim_diameter: float = 18.0
 
 var overall_diameter := 0.0
 var static_radius := 0.0
@@ -23,10 +23,10 @@ var unsprung_mass := 0.0
 var original_pressure := 220.0
 var original_brake_torque := 1500.0
 
-onready var suspension: SuspensionSystem = $SuspensionSystem
-onready var tire: TireSystem = $TireSystem
-onready var dynamics: WheelDynamics = $WheelDynamics
-onready var brake: BrakeSystem = $BrakeSystem
+@onready var suspension: SuspensionSystem = $SuspensionSystem
+@onready var tire: TireSystem = $TireSystem
+@onready var dynamics: WheelDynamics = $WheelDynamics
+@onready var brake: BrakeSystem = $BrakeSystem
 @onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator") if has_node("TireRuntimeCoordinator") else get_node_or_null("HybridTireSystem")
 
 func _ready():
