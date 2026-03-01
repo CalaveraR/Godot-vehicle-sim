@@ -1,0 +1,439 @@
+# NeutralInfluenceContract - Dados puros do contrato, sem lógica de decisão ou aplicação
+# Purista: não chama Time.get_ticks_msec() internamente, depende completamente do caller
+extends RefCounted
+class_name NeutralInfluenceContract
+
+# METADATA BÁSICA (sem origem)
+var contract_id: String = "anonymous_contract"
+var version: String = "1.0"
+var timestamp: int = 0
+var expires_at: int = 0
+
+# SEMÂNTICA DE OPERAÇÃO
+var operation_mode: String = "none"  # "clamp" | "bias" | "geometry_reference" | "none"
+var authority_level: String = "shader_primary"  # "shader_primary" | "shader_limited" | "geometry_fallback"
+
+# ALVOS GENÉRICOS (sem menção a raycast)
+var allowed_operations: Dictionary = {
+    "modify_penetration": false,
+    "modify_confidence": false,
+    "modify_contact_width": false,
+    "modify_normal": false,  # SEMPRE false por filosofia
+    "modify_regions": false,
+    "suggest_timing": false
+}
+
+# VALORES OPERACIONAIS (genéricos)
+var operational_values: Dictionary = {
+    "max_penetration": 0.0,
+    "min_confidence": 0.0,
+    "max_contact_width": 0.0,
+    "reference_plane": {"normal": Vector3.UP, "height": 0.0}
+}
+
+# PESOS FORMALIZADOS (com fórmulas documentadas)
+var operation_weights: Dictionary = {
+    "penetration_weight": 0.0,
+    "confidence_weight": 0.0,
+    "width_weight": 0.0,
+    "temporal_weight": 0.0
+}
+
+# REGRAS DETERMINÍSTICAS (fórmulas explícitas para reimplementação)
+var formal_rules: Dictionary = {
+    "penetration_rule": "lerp(shader_pen, operational_values.max_penetration, penetration_weight)",
+    "confidence_rule": "max(shader_conf, operational_values.min_confidence)",
+    "width_rule": "min(shader_width, operational_values.max_contact_width)",
+    "validity_rule": "timestamp < expires_at"
+}
+
+# DIAGNÓSTICO (sem menção a raycast) - TELEMETRIA OPICIONAL
+var diagnostic: Dictionary = {
+    "shader_confidence": 0.0,
+    "plausibility_score": 1.0,
+    "requires_attention": false,
+    "suggested_action": "none"
+}
+
+# METADATA DE SEGURANÇA (garante neutralidade)
+var safety_flags: Dictionary = {
+    "never_modifies_normals": true,
+    "never_generates_forces": true,
+    "never_replaces_shader": true,
+    "origin_agnostic": true
+}
+
+func _init(init_timestamp: int) -> void:
+    """Inicializa contrato com timestamp fornecido. Purista: sem Time.get_ticks_msec()"""
+    if init_timestamp <= 0:
+        push_error("NeutralInfluenceContract: init_timestamp deve ser > 0, recebido %d" % init_timestamp)
+        init_timestamp = 1  # Fallback seguro
+    self.timestamp = init_timestamp
+    self.expires_at = init_timestamp + 100  # 100ms de validade
+
+func is_expired(now_ms: int) -> bool:
+    """Verifica se o contrato expirou no momento dado"""
+    return now_ms > self.expires_at
+
+func _has_required_keys(d: Dictionary, required_keys: Array[String]) -> bool:
+    """Helper: verifica se dicionário tem todas as chaves obrigatórias"""
+    for key in required_keys:
+        if not d.has(key):
+            return false
+    return true
+
+func _validate_dictionary_types(d: Dictionary, type_map: Dictionary) -> bool:
+    """Valida tipos de valores em dicionário (se existirem). Aceita null."""
+    for key in type_map.keys():
+        if d.has(key):
+            if d[key] == null:
+                continue  # ✅ Aceita null (telemetria opcional)
+            if typeof(d[key]) != type_map[key]:
+                return false
+    return true
+
+func validate_structure() -> bool:
+    """Valida a estrutura do contrato (sem verificação temporal)"""
+    # 1. Verificar que não modifica normais (filosofia fundamental)
+    if self.allowed_operations.get("modify_normal", false):
+        return false
+    
+    # 2. Verificar chaves obrigatórias em allowed_operations
+    var required_allowed_ops = ["modify_penetration", "modify_confidence", "modify_contact_width", "modify_normal", "modify_regions", "suggest_timing"]
+    if not _has_required_keys(self.allowed_operations, required_allowed_ops):
+        return false
+    
+    # 3. Verificar chaves obrigatórias em operational_values
+    var required_operational_keys = ["max_penetration", "min_confidence", "max_contact_width", "reference_plane"]
+    if not _has_required_keys(self.operational_values, required_operational_keys):
+        return false
+    
+    # 4. Verificar reference_plane (com tipos específicos)
+    var plane = self.operational_values.get("reference_plane", {})
+    if not plane is Dictionary:
+        return false
+    if not _has_required_keys(plane, ["normal", "height"]):
+        return false
+    
+    # ✅ Micro-polimento B: validar tipos de reference_plane
+    var plane_normal = plane.get("normal", null)
+    var plane_height = plane.get("height", null)
+    if not (plane_normal is Vector3):
+        return false
+    if typeof(plane_height) != TYPE_FLOAT and typeof(plane_height) != TYPE_INT:
+        return false
+    
+    # 5. Verificar chaves obrigatórias em operation_weights
+    var required_weight_keys = ["penetration_weight", "confidence_weight", "width_weight", "temporal_weight"]
+    if not _has_required_keys(self.operation_weights, required_weight_keys):
+        return false
+    
+    # 6. Verificar que todos os pesos estão em [0, 1] (aceita int e float)
+    for key in required_weight_keys:
+        var w = self.operation_weights.get(key, 0.0)
+        if typeof(w) != TYPE_FLOAT and typeof(w) != TYPE_INT:
+            return false
+        var wf := float(w)
+        if wf < 0.0 or wf > 1.0:
+            return false
+    
+    # 7. Verificar chaves obrigatórias em formal_rules
+    var required_rule_keys = ["penetration_rule", "confidence_rule", "width_rule", "validity_rule"]
+    if not _has_required_keys(self.formal_rules, required_rule_keys):
+        return false
+    
+    # 8. Verificar chaves obrigatórias em safety_flags
+    var required_safety_keys = ["never_modifies_normals", "never_generates_forces", "never_replaces_shader", "origin_agnostic"]
+    if not _has_required_keys(self.safety_flags, required_safety_keys):
+        return false
+    
+    # 9. Verificar flags de segurança obrigatórias (default é false - mais restritivo)
+    if self.safety_flags.get("never_modifies_normals", false) != true:
+        return false
+    
+    if self.safety_flags.get("origin_agnostic", false) != true:
+        return false
+    
+    # 10. Verificar que authority_level é válido
+    var valid_authorities = ["shader_primary", "shader_limited", "geometry_fallback"]
+    if not valid_authorities.has(self.authority_level):
+        return false
+    
+    # 11. Verificar que operation_mode é válido
+    var valid_modes = ["none", "clamp", "bias", "geometry_reference"]
+    if not valid_modes.has(self.operation_mode):
+        return false
+    
+    # 12. Verificar tipos opcionais em diagnostic (se existirem, aceita null)
+    var diagnostic_type_map = {
+        "shader_confidence": TYPE_FLOAT,      # TYPE_FLOAT = 3
+        "plausibility_score": TYPE_FLOAT,     # TYPE_FLOAT = 3  
+        "requires_attention": TYPE_BOOL,      # TYPE_BOOL = 1
+        "suggested_action": TYPE_STRING       # TYPE_STRING = 4
+    }
+    if not _validate_dictionary_types(self.diagnostic, diagnostic_type_map):
+        return false
+    
+    return true
+
+func is_valid_at(now_ms: int) -> bool:
+    """Valida contrato completo (estrutura + temporal)"""
+    return not self.is_expired(now_ms) and self.validate_structure()
+
+func to_dict() -> Dictionary:
+    """Retorna contrato sem nenhuma referência à origem"""
+    return {
+        "contract_type": "neutral_influence_contract",
+        "contract_id": self.contract_id,
+        "version": self.version,
+        "timestamp": self.timestamp,
+        "expires_at": self.expires_at,
+        "operation_mode": self.operation_mode,
+        "authority_level": self.authority_level,
+        "allowed_operations": self.allowed_operations.duplicate(true),
+        "operational_values": self.operational_values.duplicate(true),
+        "operation_weights": self.operation_weights.duplicate(true),
+        "formal_rules": self.formal_rules.duplicate(true),
+        "diagnostic": self.diagnostic.duplicate(true),
+        "safety_flags": self.safety_flags.duplicate(true)
+    }
+
+func clone() -> NeutralInfluenceContract:
+    """Cria uma cópia fiel do contrato (mesmo timestamp/expiração)"""
+    var new_contract = NeutralInfluenceContract.new(self.timestamp)
+    new_contract.contract_id = self.contract_id
+    new_contract.version = self.version
+    new_contract.expires_at = self.expires_at  # Mantém expiração original
+    new_contract.operation_mode = self.operation_mode
+    new_contract.authority_level = self.authority_level
+    new_contract.allowed_operations = self.allowed_operations.duplicate(true)
+    new_contract.operational_values = self.operational_values.duplicate(true)
+    new_contract.operation_weights = self.operation_weights.duplicate(true)
+    new_contract.formal_rules = self.formal_rules.duplicate(true)
+    new_contract.diagnostic = self.diagnostic.duplicate(true)
+    new_contract.safety_flags = self.safety_flags.duplicate(true)
+    return new_contract
+
+func clone_as_new(new_timestamp: int) -> NeutralInfluenceContract:
+    """Cria uma cópia do contrato como novo contrato (com novo timestamp)"""
+    var new_contract = NeutralInfluenceContract.new(new_timestamp)
+    new_contract.contract_id = "cloned_" + str(new_timestamp)
+    new_contract.version = self.version
+    new_contract.operation_mode = self.operation_mode
+    new_contract.authority_level = self.authority_level
+    new_contract.allowed_operations = self.allowed_operations.duplicate(true)
+    new_contract.operational_values = self.operational_values.duplicate(true)
+    new_contract.operation_weights = self.operation_weights.duplicate(true)
+    new_contract.formal_rules = self.formal_rules.duplicate(true)
+    new_contract.diagnostic = self.diagnostic.duplicate(true)
+    new_contract.safety_flags = self.safety_flags.duplicate(true)
+    return new_contract
+
+func get_remaining_validity_ms(now_ms: int) -> int:
+    """Retorna quanto tempo (em ms) o contrato ainda é válido"""
+    return max(0, self.expires_at - now_ms)
+
+func get_philosophy_validation(now_ms: int) -> Dictionary:
+    """Retorna status de validação da filosofia do contrato (sem ler tempo global)"""
+    return {
+        "sovereignty_respected": not self.allowed_operations.get("modify_normal", false),
+        "origin_neutral": self.safety_flags.get("origin_agnostic", false) == true,
+        "deterministic": self.formal_rules.size() > 0,
+        "expires_soon": self.get_remaining_validity_ms(now_ms) < 50,
+        "structural_integrity": self.validate_structure(),
+        "temporal_validity": not self.is_expired(now_ms)
+    }
+
+func get_expiration_info(now_ms: int) -> Dictionary:
+    """Informações detalhadas sobre expiração do contrato (robusto contra divisão por zero)"""
+    var remaining = self.get_remaining_validity_ms(now_ms)
+    var total_lifetime = max(1, self.expires_at - self.timestamp)  # Garante pelo menos 1ms
+    var lifetime_used = total_lifetime - remaining
+    
+    return {
+        "remaining_ms": remaining,
+        "lifetime_used_ms": lifetime_used,
+        "total_lifetime_ms": total_lifetime,
+        "is_expired": self.is_expired(now_ms),
+        "percent_used": float(lifetime_used) / float(total_lifetime) * 100.0,
+        "timestamp": self.timestamp,
+        "expires_at": self.expires_at,
+        "now_ms": now_ms
+    }
+
+func get_optional_diagnostic() -> Dictionary:
+    """Retorna apenas diagnósticos que existem (útil para debug/telemetria)"""
+    var result = {}
+    
+    for key in ["shader_confidence", "plausibility_score", "requires_attention", "suggested_action"]:
+        if self.diagnostic.has(key) and self.diagnostic[key] != null:
+            result[key] = self.diagnostic[key]
+    
+    return result
+
+static func create_minimal(timestamp: int) -> NeutralInfluenceContract:
+    """Método estático para criar um contrato mínimo válido"""
+    var ts := timestamp
+    if ts <= 0:
+        ts = 1
+        push_warning("NeutralInfluenceContract.create_minimal: timestamp inválido (%d), usando 1" % timestamp)
+    
+    var contract = NeutralInfluenceContract.new(ts)
+    contract.contract_id = "minimal_contract_" + str(ts)
+    contract.authority_level = "shader_primary"
+    contract.operation_mode = "none"
+    contract.diagnostic["suggested_action"] = "minimal_contract"
+    return contract
+
+static func _safe_int(value, fallback: int = 1) -> int:
+    """Helper seguro para converter qualquer valor para int"""
+    var t := typeof(value)
+    match t:
+        TYPE_INT:
+            return int(value)
+        TYPE_FLOAT:
+            return int(value) # trunc
+        TYPE_STRING:
+            var s := String(value).strip_edges()
+            # ✅ Micro-polimento A: strip_edges já remove espaços, is_valid_int aceita sinal
+            if s.is_valid_int():
+                return int(s)
+            if s.is_valid_float():
+                return int(float(s))
+            return fallback
+        _:
+            return fallback
+
+static func normalize_weight(value) -> float:
+    """Normaliza qualquer valor numérico para float no intervalo [0, 1]"""
+    var t := typeof(value)
+    var f := 0.0
+
+    if t == TYPE_FLOAT or t == TYPE_INT:
+        f = float(value)
+    elif t == TYPE_STRING:
+        var s := String(value).strip_edges()
+        if s.is_valid_float():
+            f = float(s)
+        elif s.is_valid_int():
+            f = float(int(s))
+        else:
+            return 0.0
+    else:
+        return 0.0
+
+    return clamp(f, 0.0, 1.0)
+
+static func _safe_vector3(value) -> Vector3:
+    """Converte qualquer representação segura para Vector3, com fallback para UP"""
+    if value is Vector3:
+        return value
+    
+    if value is Array and value.size() == 3:
+        # ✅ Blindagem: converter cada elemento para float
+        return Vector3(
+            float(value[0]),
+            float(value[1]),
+            float(value[2])
+        )
+    
+    if value is Dictionary:
+        # ✅ Compatibilidade: usar has() individual em vez de has_all()
+        if value.has("x") and value.has("y") and value.has("z"):
+            # ✅ Blindagem: converter cada valor para float
+            return Vector3(
+                float(value["x"]),
+                float(value["y"]),
+                float(value["z"])
+            )
+    
+    return Vector3.UP
+
+static func create_from_dict(data: Dictionary) -> NeutralInfluenceContract:
+    """Cria um contrato a partir de um dicionário (útil para serialização)"""
+    if not data.has("timestamp"):
+        push_error("NeutralInfluenceContract.create_from_dict: timestamp obrigatório")
+        return create_minimal(1)
+
+    var ts := _safe_int(data["timestamp"], 1)
+    if ts <= 0:
+        ts = 1
+
+    # Se o timestamp original era string inválida, retorna contrato mínimo
+    if typeof(data["timestamp"]) == TYPE_STRING:
+        var s := String(data["timestamp"]).strip_edges()
+        if not s.is_valid_int() and not s.is_valid_float():
+            push_error("NeutralInfluenceContract.create_from_dict: timestamp string inválida '%s', retornando contrato mínimo" % s)
+            return create_minimal(1)
+
+    var contract = NeutralInfluenceContract.new(ts)
+
+    if data.has("contract_id"):
+        contract.contract_id = str(data["contract_id"])
+    if data.has("version"):
+        contract.version = str(data["version"])
+
+    if data.has("expires_at"):
+        contract.expires_at = _safe_int(data["expires_at"], contract.timestamp + 100)
+    else:
+        contract.expires_at = contract.timestamp + 100
+
+    if data.has("operation_mode"):
+        contract.operation_mode = str(data["operation_mode"])
+    if data.has("authority_level"):
+        contract.authority_level = str(data["authority_level"])
+
+    # Dicionários com deep copy
+    if data.has("allowed_operations") and data["allowed_operations"] is Dictionary:
+        contract.allowed_operations = data["allowed_operations"].duplicate(true)
+    
+    # ✅ Normalização: reference_plane pode vir serializado
+    if data.has("operational_values") and data["operational_values"] is Dictionary:
+        contract.operational_values = data["operational_values"].duplicate(true)
+        # Garantir que reference_plane.normal seja Vector3 se existir
+        if contract.operational_values.has("reference_plane"):
+            var plane = contract.operational_values["reference_plane"]
+            if plane is Dictionary and plane.has("normal"):
+                plane["normal"] = _safe_vector3(plane["normal"])
+    
+    # ✅ NORMALIZAÇÃO: operation_weights vindo de serialização (aceita strings, números)
+    if data.has("operation_weights") and data["operation_weights"] is Dictionary:
+        contract.operation_weights = data["operation_weights"].duplicate(true)
+        # Normaliza os 4 pesos padrão se existirem
+        for k in ["penetration_weight", "confidence_weight", "width_weight", "temporal_weight"]:
+            if contract.operation_weights.has(k):
+                contract.operation_weights[k] = normalize_weight(contract.operation_weights[k])
+    
+    if data.has("formal_rules") and data["formal_rules"] is Dictionary:
+        contract.formal_rules = data["formal_rules"].duplicate(true)
+    if data.has("diagnostic") and data["diagnostic"] is Dictionary:
+        contract.diagnostic = data["diagnostic"].duplicate(true)
+    if data.has("safety_flags") and data["safety_flags"] is Dictionary:
+        contract.safety_flags = data["safety_flags"].duplicate(true)
+
+    # ✅ NORMALIZAÇÃO: garantir que expires_at seja maior que timestamp
+    if contract.expires_at <= contract.timestamp:
+        push_warning("NeutralInfluenceContract.create_from_dict: expires_at (%d) <= timestamp (%d), ajustando para timestamp + 100" % [contract.expires_at, contract.timestamp])
+        contract.expires_at = contract.timestamp + 100
+
+    return contract
+
+static func create_validation_report(contract: NeutralInfluenceContract, now_ms: int) -> Dictionary:
+    """Relatório detalhado de validação para debug"""
+    return {
+        "contract_id": contract.contract_id,
+        "timestamp": contract.timestamp,
+        "expires_at": contract.expires_at,
+        "now_ms": now_ms,
+        "is_expired": contract.is_expired(now_ms),
+        "structure_valid": contract.validate_structure(),
+        "philosophy_validation": contract.get_philosophy_validation(now_ms),
+        "expiration_info": contract.get_expiration_info(now_ms),
+        "diagnostic_summary": contract.get_optional_diagnostic()
+    }
+
+func _to_string() -> String:
+    """Representação de string para debug"""
+    return "[NeutralInfluenceContract id=%s mode=%s auth=%s ts=%d exp=%d]" % [
+        contract_id, operation_mode, authority_level, timestamp, expires_at
+    ]
