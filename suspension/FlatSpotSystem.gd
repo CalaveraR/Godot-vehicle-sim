@@ -1,23 +1,25 @@
 class_name FlatSpotSystem
 extends Node
+# Simula formacao e recuperacao de flat spot no pneu.
+# E consumido por Wheel e TireSystem para vibracao, desgaste e torque.
 
-export var max_flat_spot_depth = 0.02
-export var flat_spot_recovery_rate = 0.0001
-export var flat_spot_sensitivity = 0.8
-export var flat_spot_vibration_freq = 15.0
-export var vibration_transmission = 0.5
-export(Curve) var acoustic_profile_curve
-export(Curve) var flat_spot_torque_curve
-export(Curve) var vibration_angular_distribution_curve
+@export var max_flat_spot_depth = 0.02
+@export var flat_spot_recovery_rate = 0.0001
+@export var flat_spot_sensitivity = 0.8
+@export var flat_spot_vibration_freq = 15.0
+@export var vibration_transmission = 0.5
+@export var acoustic_profile_curve: Curve
+@export var flat_spot_torque_curve: Curve
+@export var vibration_angular_distribution_curve: Curve
 
 enum FLAT_SPOT_MODE {DISABLED, VIRTUAL_RECOVERY, HYBRID_RECOVERY, PHYSICAL_ONLY}
-export(FLAT_SPOT_MODE) var flat_spot_mode = FLAT_SPOT_MODE.HYBRID_RECOVERY
+@export var flat_spot_mode: FLAT_SPOT_MODE = FLAT_SPOT_MODE.HYBRID_RECOVERY
 
-export(Curve) var virtual_recovery_curve
-export(Curve) var hybrid_recovery_curve
-export(Curve) var mechanical_wear_curve
-export(Curve) var flat_spot_formation_curve
-export(Curve) var flat_spot_vibration_curve
+@export var virtual_recovery_curve: Curve
+@export var hybrid_recovery_curve: Curve
+@export var mechanical_wear_curve: Curve
+@export var flat_spot_formation_curve: Curve
+@export var flat_spot_vibration_curve: Curve
 
 var flat_spot_depth = 0.0
 var flat_spot_angle = 0.0

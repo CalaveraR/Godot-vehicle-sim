@@ -1,9 +1,11 @@
 class_name SuspensionResponseSystem
 extends Node
+# Filtra resposta de vibracao e retorno da suspensao.
+# Recebe dados de SuspensionSystem e entrega resposta para WheelDynamics.
 
-export(Curve) var load_transfer_response_curve
-export(Curve) var bump_steer_response_curve
-export(Curve) var roll_center_movement_curve
+@export var load_transfer_response_curve: Curve
+@export var bump_steer_response_curve: Curve
+@export var roll_center_movement_curve: Curve
 
 var load_transfer = 0.0
 var dynamic_bump_steer = 0.0

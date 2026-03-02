@@ -1,21 +1,21 @@
 class_name FuelSystem
 extends Node
 
-# ======================
+#
 # VERSÃO 3.0 - SISTEMA DE COMBUSTÍVEL COMPLETO
-# ======================
+#
 # Características principais:
-# - ✅ 100% compatível com Engine 3.1, CylinderHead 3.0, AirSystem
-# - ✅ Sistema de injeção multiponto sequencial e simultânea
-# - ✅ Curvas de correção por temperatura, pressão e altitude
-# - ✅ Modelo físico realista de pressão de combustível
-# - ✅ Sistema de falhas e diagnóstico completo
-# - ✅ Suporte a diferentes tipos de combustível
-# ======================
+# - 100% compatível com Engine 3.1, CylinderHead 3.0, AirSystem
+# - Sistema de injeção multiponto sequencial e simultânea
+# - Curvas de correção por temperatura, pressão e altitude
+# - Modelo físico realista de pressão de combustível
+# - Sistema de falhas e diagnóstico completo
+# - Suporte a diferentes tipos de combustível
+#
 
-# ======================
+#
 # ENUMS E CONFIGURAÇÕES
-# ======================
+#
 enum InjectionType {
     SINGLE_POINT,
     MULTI_POINT,
@@ -42,20 +42,20 @@ enum FailureType {
     CONTAMINATION
 }
 
-# ======================
+#
 # PARÂMETROS CONFIGURÁVEIS
-# ======================
-export(InjectionType) var injection_type = InjectionType.SEQUENTIAL
-export(FuelType) var fuel_type = FuelType.GASOLINE
-export var base_fuel_pressure: float = 3.0  # bar
-export var injector_size: float = 250.0     # cc/min
-export var fuel_tank_capacity: float = 50.0 # litros
-export var fuel_rail_volume: float = 0.3    # litros
-export var fuel_pump_flow_rate: float = 120.0 # L/h
+#
+@export var injection_type: InjectionType = InjectionType.SEQUENTIAL
+@export var fuel_type: FuelType = FuelType.GASOLINE
+@export var base_fuel_pressure: float = 3.0  # bar
+@export var injector_size: float = 250.0     # cc/min
+@export var fuel_tank_capacity: float = 50.0 # litros
+@export var fuel_rail_volume: float = 0.3    # litros
+@export var fuel_pump_flow_rate: float = 120.0 # L/h
 
-# ======================
+#
 # ESTADO DINÂMICO
-# ======================
+#
 var current_fuel_pressure: float = 0.0
 var fuel_tank_level: float = 50.0
 var fuel_consumption_rate: float = 0.0
@@ -67,35 +67,35 @@ var fuel_quality: float = 1.0
 var octane_rating: float = 91.0
 var fuel_temperature: float = 25.0
 
-# ======================
+#
 # SISTEMA DE FALHAS
-# ======================
+#
 var failure_mode: int = FailureType.NONE
 var failure_severity: float = 0.0
 var injector_clogging: Array = []
 var pump_efficiency: float = 1.0
 var pressure_regulator_efficiency: float = 1.0
 
-# ======================
+#
 # CURVAS DE CORREÇÃO
-# ======================
+#
 var temperature_correction_curve: Curve
 var pressure_correction_curve: Curve
 var altitude_correction_curve: Curve
 var injector_deadtime_curve: Curve
 var fuel_pump_flow_curve: Curve
 
-# ======================
+#
 # REFERÊNCIAS
-# ======================
+#
 var engine: Engine
 var air_system: Node
 var ignition_system: Node
 var diagnostic_system: Node
 
-# ======================
+#
 # SINAIS
-# ======================
+#
 signal fuel_pressure_changed(pressure: float)
 signal fuel_level_changed(level: float)
 signal fuel_consumption_updated(instantaneous: float, average: float)
@@ -103,9 +103,9 @@ signal injector_pulsed(cylinder: int, pulse_width: float)
 signal system_failure(failure_type: int, severity: float)
 signal fuel_quality_updated(quality: float)
 
-# ======================
+#
 # CONSTANTES
-# ======================
+#
 const SPECIFIC_GRAVITY_GASOLINE: float = 0.745
 const SPECIFIC_GRAVITY_DIESEL: float = 0.850
 const FUEL_DENSITY_GASOLINE: float = 0.75  # kg/L
@@ -114,9 +114,9 @@ const MIN_FUEL_PRESSURE: float = 1.5
 const MAX_FUEL_PRESSURE: float = 6.0
 const CRITICAL_FUEL_LEVEL: float = 5.0  # litros
 
-# ======================
+#
 # INICIALIZAÇÃO
-# ======================
+#
 func _ready():
     initialize_system()
     create_default_curves()
@@ -197,9 +197,9 @@ func create_default_curves():
     fuel_pump_flow_curve.add_point(Vector2(2.0, 0.9))
     fuel_pump_flow_curve.add_point(Vector2(3.0, 0.8))
 
-# ======================
+#
 # ATUALIZAÇÃO PRINCIPAL
-# ======================
+#
 func update(delta: float):
     """Atualiza o sistema de combustível - chamado pelo Engine"""
     if not engine or fuel_tank_level <= 0:
@@ -375,9 +375,9 @@ func apply_injector_corrections(base_pulse: float, cylinder: int) -> float:
     
     return corrected_pulse
 
-# ======================
+#
 # SISTEMA DE FALHAS
-# ======================
+#
 func handle_failures(delta: float):
     """Gerencia falhas e degradação do sistema"""
     
@@ -423,9 +423,9 @@ func initiate_random_failure():
     
     system_failure.emit(failure_mode, failure_severity)
 
-# ======================
+#
 # API PÚBLICA
-# ======================
+#
 func get_fuel_quality() -> float:
     return fuel_quality
 
@@ -480,9 +480,9 @@ func perform_maintenance():
     for i in range(injector_clogging.size()):
         injector_clogging[i] = 0.0
 
-# ======================
+#
 # UTILITÁRIOS
-# ======================
+#
 func get_fuel_density() -> float:
     match fuel_type:
         FuelType.DIESEL:

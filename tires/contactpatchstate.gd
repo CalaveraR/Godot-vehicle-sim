@@ -33,7 +33,7 @@ var max_penetration: float
 var patch_confidence: float
 
 # --- Estado de histerese ---
-# 🔹 1️⃣ Histerese simples do pneu
+#  1 Histerese simples do pneu
 # stored_energy: acumula input (slip + penetração)
 # recovery: decay exponencial baseado no nível de energia
 var stored_energy: float = 0.0        # Energia acumulada (unidades abstratas)
@@ -58,7 +58,7 @@ func _init(sample_array: Array[TireSample] = [], time: float = 0.0) -> void:
     
     NOTA: stored_energy é unidade abstrata, não física.
     
-    🔹 IMPLEMENTAÇÕES-CHAVE:
+     IMPLEMENTAÇÕES-CHAVE:
     1. Histerese simples: stored_energy += input, stored_energy -= recovery * delta
     2. Memória residual: residual_energy *= exp(-delta * decay_rate) (decay barato)
     3. Micro-lag no slip para sensação de massa
@@ -89,11 +89,11 @@ func update_hysteresis(delta: float, tire_load: float, tire_stiffness: float) ->
     tire_load: carga vertical atual no pneu
     tire_stiffness: rigidez vertical do pneu
     
-    🔹 1️⃣ Histerese simples do pneu:
+     1 Histerese simples do pneu:
     stored_energy += input (slip + penetração)
     stored_energy -= recovery * delta (decay exponencial)
     
-    🔹 2️⃣ Memória de energia residual:
+     2 Memória de energia residual:
     residual_energy *= exp(-delta * decay_rate) (decay barato)
     """
     if not valid:
@@ -105,7 +105,7 @@ func update_hysteresis(delta: float, tire_load: float, tire_stiffness: float) ->
     
     var current_slip_magnitude = get_average_slip_magnitude()
     
-    # 🔹 1️⃣ ACÚMULO (input) da histerese simples
+    #  1 ACÚMULO (input) da histerese simples
     # TODO: Futuramente tornar threshold dependente da carga
     if current_slip_magnitude > SLIP_ENERGY_THRESHOLD:
         var slip_energy = current_slip_magnitude * tire_load * delta
@@ -116,7 +116,7 @@ func update_hysteresis(delta: float, tire_load: float, tire_stiffness: float) ->
         var deformation_energy = max_penetration * tire_stiffness * delta
         stored_energy += deformation_energy  # INPUT: deformação
     
-    # 🔹 2️⃣ Memória de energia residual (transições bruscas)
+    #  2 Memória de energia residual (transições bruscas)
     var slip_change = abs(current_slip_magnitude - last_slip_magnitude)
     if slip_change > 0.2:  # Mudança brusca no slip
         residual_energy += slip_change * tire_load * 0.5  # INPUT residual
@@ -124,12 +124,12 @@ func update_hysteresis(delta: float, tire_load: float, tire_stiffness: float) ->
     # 4. Saturação (MAX_STORED_ENERGY é unidade abstrata)
     stored_energy = min(stored_energy, MAX_STORED_ENERGY)
     
-    # 🔹 1️⃣ RECUPERAÇÃO (recovery) da histerese simples
+    #  1 RECUPERAÇÃO (recovery) da histerese simples
     # Decay exponencial: stored_energy -= recovery * delta (implícito na multiplicação)
     var decay_rate = HYSTERESIS_RECOVERY_SLOW if stored_energy > ENERGY_THRESHOLD else HYSTERESIS_RECOVERY_FAST
     stored_energy *= exp(-decay_rate * delta)  # RECOVERY: decay exponencial
     
-    # 🔹 2️⃣ Decay da memória residual (decay barato)
+    #  2 Decay da memória residual (decay barato)
     residual_energy *= exp(-RESIDUAL_DECAY_RATE * delta)  # DECAY: residual_energy *= exp(-delta * decay_rate)
     
     # 6. Aplica micro-lag no slip para sensação de massa
@@ -236,7 +236,7 @@ func _update_hysteresis_factor() -> void:
     Converte energia armazenada em fator de histerese [0.7..1.0].
     ATENÇÃO: Não inclui patch_confidence aqui.
     
-    🔹 Tradução direta da histerese simples para fator útil:
+     Tradução direta da histerese simples para fator útil:
     stored_energy → hysteresis_factor [0.7..1.0]
     """
     var total_energy = stored_energy + residual_energy * 0.3
@@ -339,7 +339,7 @@ func get_effective_grip_factor() -> float:
     Retorna fator de grip combinando histerese e confiança.
     Superfície ruim não só tem menos grip, mas se recupera pior.
     
-    🔹 Combinação final dos efeitos de histerese:
+     Combinação final dos efeitos de histerese:
     1. Histerese simples (stored_energy → hysteresis_factor)
     2. Memória residual (residual_energy)
     3. Modulação por confiança da superfície
@@ -353,7 +353,7 @@ func get_grip_modulation_factors() -> Dictionary:
     Retorna fatores separados para o solver combinar apropriadamente.
     AVISO: O solver deve escolher entre usar get_effective_grip_factor() ou combinar manualmente.
     
-    🔹 Contém ambos os componentes da histerese:
+     Contém ambos os componentes da histerese:
     1. stored_energy (histerese simples)
     2. residual_energy (memória residual)
     """
@@ -363,8 +363,8 @@ func get_grip_modulation_factors() -> Dictionary:
         "confidence_factor": lerp(CONFIDENCE_HYSTERESIS_MULTIPLIER, 1.0, patch_confidence),
         "effective": get_effective_grip_factor(),
         "lagged_slip": lagged_slip_local,  # Para sensação de massa
-        "stored_energy": stored_energy,    # 🔹 Histerese simples
-        "residual_energy": residual_energy # 🔹 Memória residual
+        "stored_energy": stored_energy,    #  Histerese simples
+        "residual_energy": residual_energy #  Memória residual
     }
 
 func get_thermal_state() -> float:
@@ -372,7 +372,7 @@ func get_thermal_state() -> float:
     Estado térmico normalizado [0..1] baseado na histerese
     0 = frio, 1 = superaquecido (apenas unidades abstratas)
     
-    🔹 Representação direta da histerese simples
+     Representação direta da histerese simples
     """
     return clamp(stored_energy / MAX_STORED_ENERGY, 0.0, 1.0)
 
@@ -386,8 +386,8 @@ func _to_string() -> String:
         patch_confidence,
         hysteresis_factor,
         get_effective_grip_factor(),
-        stored_energy,      # 🔹 Histerese simples
-        residual_energy     # 🔹 Memória residual
+        stored_energy,      #  Histerese simples
+        residual_energy     #  Memória residual
     ]
 
 func get_debug_info() -> Dictionary:
@@ -411,7 +411,7 @@ func get_debug_info() -> Dictionary:
         "hysteresis": get_hysteresis_debug_info(),
         "grip_factors": factors,
         "thermal_state": get_thermal_state(),
-        # 🔹 Destaque para os dois componentes principais
+        #  Destaque para os dois componentes principais
         "hysteresis_simple": {
             "stored_energy": stored_energy,
             "recovery_rate": HYSTERESIS_RECOVERY_SLOW if stored_energy > ENERGY_THRESHOLD else HYSTERESIS_RECOVERY_FAST,

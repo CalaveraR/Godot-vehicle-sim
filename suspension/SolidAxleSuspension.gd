@@ -1,7 +1,9 @@
 class_name SolidAxleSuspension
 extends SuspensionSystem
+# Modelo de eixo rigido para pares de rodas ligados.
+# Integrado ao SuspensionSystem para distribuir carga entre lados do eixo.
 
-export var axle_stiffness = 1000000.0
+@export var axle_stiffness = 1000000.0
 
 func _ready():
     suspension_type = SUSPENSION_TYPE.SOLID_AXLE

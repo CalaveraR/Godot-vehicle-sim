@@ -1,25 +1,25 @@
 class_name BrakeSystem
 extends Node
 
-export var max_brake_torque = 1500.0
-export var handbrake_torque = 2000.0
-export var brake_balance = 0.6
-export var disc_mass = 5.0
-export var disc_specific_heat = 480.0
-export var pad_wear_rate = 0.00001
-export var min_pad_thickness = 2.0
-export(Curve) var brake_fade_curve
-export(Curve) var pad_friction_temp_curve
-export(Curve) var disc_warp_curve
+@export var max_brake_torque = 1500.0
+@export var handbrake_torque = 2000.0
+@export var brake_balance = 0.6
+@export var disc_mass = 5.0
+@export var disc_specific_heat = 480.0
+@export var pad_wear_rate = 0.00001
+@export var min_pad_thickness = 2.0
+@export var brake_fade_curve: Curve
+@export var pad_friction_temp_curve: Curve
+@export var disc_warp_curve: Curve
 
 # Novas propriedades para modelo térmico estendido
-export(Curve) var wheel_heat_resistance_curve
-export(Curve) var hydraulic_efficiency_curve
-export(Curve) var pad_wear_curve
-export var convection_coefficient = 15.0
-export var radiation_coefficient = 0.000001
-export var disc_to_pad_conductivity = 100.0
-export var pad_to_caliper_conductivity = 50.0
+@export var wheel_heat_resistance_curve: Curve
+@export var hydraulic_efficiency_curve: Curve
+@export var pad_wear_curve: Curve
+@export var convection_coefficient = 15.0
+@export var radiation_coefficient = 0.000001
+@export var disc_to_pad_conductivity = 100.0
+@export var pad_to_caliper_conductivity = 50.0
 
 var current_brake_torque = 0.0
 var handbrake_active = false

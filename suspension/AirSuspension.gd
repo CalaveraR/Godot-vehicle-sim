@@ -1,8 +1,8 @@
 class_name AirSuspension
 extends SuspensionSystem
 
-export var air_pressure = 500.0 # kPa
-export var air_volume = 5.0 # Liters
+@export var air_pressure = 500.0 # kPa
+@export var air_volume = 5.0 # Liters
 var min_air_pressure = 300.0
 var max_air_pressure = 700.0
 

@@ -5,11 +5,11 @@ extends RefCounted
 # VERSÃO 3.1 - ANTI-LAG COMPATÍVEL
 # ======================
 // Melhorias:
-// - ✅ 100% compatível com versão anterior
-// - ✅ Integração com TurboSystem 3.1
-// - ✅ Cálculos de temperatura mais precisos
-// - ✅ Diferentes modos operacionais
-// - ✅ Preparado para sistemas modernos
+// -  100% compatível com versão anterior
+// -  Integração com TurboSystem 3.1
+// -  Cálculos de temperatura mais precisos
+// -  Diferentes modos operacionais
+// -  Preparado para sistemas modernos
 // ======================
 
 // Estado (COMPATÍVEL)
@@ -18,13 +18,13 @@ var active: bool = false
 var timer: float = 0.0
 var exhaust_pop: bool = false
 
-// ✅ NOVOS PARÂMETROS
+//  NOVOS PARÂMETROS
 var exhaust_temperature: float = 500.0
 var fuel_trim: float = 0.0
 var ignition_retard: float = 0.0
 var turbo_pressure_target: float = 1.2
 
-// Curvas (✅ OTIMIZADO: Curve)
+// Curvas ( OTIMIZADO: Curve)
 var temperature_curve: Curve
 var fuel_curve: Curve
 
@@ -33,7 +33,7 @@ func _init(system: Node):
     _create_curves()
 
 func _create_curves():
-    """✅ OTIMIZADO: Curvas do anti-lag"""
+    """ OTIMIZADO: Curvas do anti-lag"""
     temperature_curve = Curve.new()
     temperature_curve.add_point(Vector2(0.0, 500.0))   // Base
     temperature_curve.add_point(Vector2(0.5, 800.0))   // Ativo
@@ -49,7 +49,7 @@ func _create_curves():
 // ======================
 
 func update(delta: float, rpm_normalized: float):
-    """✅ COMPATÍVEL: Interface idêntica"""
+    """ COMPATÍVEL: Interface idêntica"""
     exhaust_pop = false
     
     if turbo_system.anti_lag_mode == turbo_system.AntiLagMode.OFF:
@@ -67,11 +67,11 @@ func update(delta: float, rpm_normalized: float):
         turbo_system.AntiLagMode.RACE_ACTIVE:
             _update_race_mode(delta, should_activate, rpm_normalized)
     
-    // ✅ NOVO: Atualizar temperatura do escape
+    //  NOVO: Atualizar temperatura do escape
     _update_exhaust_temperature(delta)
 
 func _should_activate_anti_lag(rpm_normalized: float) -> bool:
-    """✅ COMPATÍVEL: Verifica se deve ativar"""
+    """ COMPATÍVEL: Verifica se deve ativar"""
     return (
         turbo_system.engine_rpm >= turbo_system.anti_lag_min_rpm && 
         turbo_system.engine_throttle < 0.1 && 
@@ -79,7 +79,7 @@ func _should_activate_anti_lag(rpm_normalized: float) -> bool:
     )
 
 func _update_passive_mode(delta: float, should_activate: bool, rpm_normalized: float):
-    """✅ COMPATÍVEL: Modo passivo"""
+    """ COMPATÍVEL: Modo passivo"""
     if should_activate:
         active = true
         turbo_system.boost_target = max(turbo_system.boost_target, turbo_system.anti_lag_boost_target * 0.7)
@@ -91,7 +91,7 @@ func _update_passive_mode(delta: float, should_activate: bool, rpm_normalized: f
         _reset_parameters()
 
 func _update_active_mode(delta: float, should_activate: bool, rpm_normalized: float):
-    """✅ COMPATÍVEL: Modo ativo"""
+    """ COMPATÍVEL: Modo ativo"""
     if should_activate:
         active = true
         turbo_system.boost_target = max(turbo_system.boost_target, turbo_system.anti_lag_boost_target * 0.8)
@@ -110,7 +110,7 @@ func _update_active_mode(delta: float, should_activate: bool, rpm_normalized: fl
         _reset_parameters()
 
 func _update_race_mode(delta: float, should_activate: bool, rpm_normalized: float):
-    """✅ COMPATÍVEL: Modo corrida"""
+    """ COMPATÍVEL: Modo corrida"""
     active = turbo_system.engine_rpm >= turbo_system.anti_lag_min_rpm
     
     if active:
@@ -130,16 +130,16 @@ func _update_race_mode(delta: float, should_activate: bool, rpm_normalized: floa
         active = false
 
 // ======================
-// NOVOS MÉTODOS (✅ COMPATÍVEIS)
+// NOVOS MÉTODOS ( COMPATÍVEIS)
 // ======================
 
 func _update_exhaust_temperature(delta: float):
-    """✅ NOVO: Atualiza temperatura do escape"""
+    """ NOVO: Atualiza temperatura do escape"""
     if active:
         var target_temp = temperature_curve.sample(fuel_trim * 4.0)  // 0-1 para 0-4
         exhaust_temperature = lerp(exhaust_temperature, target_temp, delta * 2.0)
         
-        // ✅ COMPATÍVEL: Notificar turbo system se possível
+        //  COMPATÍVEL: Notificar turbo system se possível
         if turbo_system.has_method("set_exhaust_temperature"):
             turbo_system.set_exhaust_temperature(exhaust_temperature)
     else:
@@ -147,13 +147,13 @@ func _update_exhaust_temperature(delta: float):
         exhaust_temperature = lerp(exhaust_temperature, 500.0, delta * 0.5)
 
 func _deactivate_system():
-    """✅ NOVO: Desativação completa do sistema"""
+    """ NOVO: Desativação completa do sistema"""
     fuel_trim = 0.0
     ignition_retard = 0.0
     exhaust_temperature = 500.0
 
 func _reset_parameters():
-    """✅ NOVO: Reset de parâmetros"""
+    """ NOVO: Reset de parâmetros"""
     fuel_trim = 0.0
     ignition_retard = 0.0
 
@@ -162,7 +162,7 @@ func _reset_parameters():
 // ======================
 
 func get_anti_lag_data() -> Dictionary:
-    """✅ COMPATÍVEL: Dados do sistema"""
+    """ COMPATÍVEL: Dados do sistema"""
     return {
         "active": active,
         "exhaust_pop": exhaust_pop,
@@ -174,7 +174,7 @@ func get_anti_lag_data() -> Dictionary:
     }
 
 func set_turbo_pressure_target(target: float):
-    """✅ NOVO: Define pressão alvo do turbo"""
+    """ NOVO: Define pressão alvo do turbo"""
     turbo_pressure_target = max(1.0, target)
 
 // ======================
@@ -182,11 +182,11 @@ func set_turbo_pressure_target(target: float):
 // ======================
 
 func is_temperature_safe() -> bool:
-    """✅ NOVO: Verifica se temperatura está segura"""
+    """ NOVO: Verifica se temperatura está segura"""
     return exhaust_temperature < 1000.0
 
 func get_turbo_stress_level() -> float:
-    """✅ NOVO: Nível de estresse no turbo"""
+    """ NOVO: Nível de estresse no turbo"""
     if !active:
         return 0.0
     
