@@ -1,12 +1,7 @@
 class_name TireProfileMeshBuilder
 extends RefCounted
 
-const PROFILE_SAMPLE_POINTS: int = 7
 
-# Gera malha de perfil do pneu por revolução radial.
-# A curva 2D representa o perfil horizontal editável por modders.
-# O perfil horizontal é sempre discretizado em 7 pontos (nodes) para
-# facilitar pneus assimétricos, arquiteturas antigas (ply) e modernas.
 func build_profile_mesh(
 	curve_profile: Curve2D,
 	tire_width: float,
@@ -15,9 +10,7 @@ func build_profile_mesh(
 	vertical_zones: int,
 	radial_zones: int
 ) -> ArrayMesh:
-	# Mantido por compatibilidade de assinatura; a discretização é fixa em 7.
-	var _legacy_vertical_zones := vertical_zones
-	var safe_vertical := PROFILE_SAMPLE_POINTS
+
 	var safe_radial := max(radial_zones, 3)
 
 	var surface_tool := SurfaceTool.new()
