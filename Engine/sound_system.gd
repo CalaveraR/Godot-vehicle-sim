@@ -1,13 +1,15 @@
 class_name SoundSystem
 extends Node
+# Controla sons de cambio e falhas.
+# Este node e chamado por scripts de transmissao e drivetrain para feedback de audio.
 
-onready var gear_engage = $GearEngage
-onready var gear_grind = $GearGrind
-onready var transmission_fail = $TransmissionFail
-onready var vibration_sound = $Vibration
-onready var warning_high = $WarningHigh
-onready var warning_low = $WarningLow
-onready var drivetrain_failure = $DrivetrainFailure
+@onready var gear_engage = $GearEngage
+@onready var gear_grind = $GearGrind
+@onready var transmission_fail = $TransmissionFail
+@onready var vibration_sound = $Vibration
+@onready var warning_high = $WarningHigh
+@onready var warning_low = $WarningLow
+@onready var drivetrain_failure = $DrivetrainFailure
 
 func play_sound(sound_name: String):
     match sound_name:

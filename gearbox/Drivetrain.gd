@@ -5,13 +5,13 @@ signal failure
 signal backlash_impact(intensity)
 
 # Configuração
-export(float) var base_backlash = 0.05
-export(float) var base_stiffness = 1000.0
-export(float) var base_damping = 50.0
-export(float) var max_fluid_temp = 120.0
-export(float) var viscosity = 0.05
-export(Curve) var viscosity_curve
-export(Curve) var thermal_efficiency_curve
+@export var base_backlash: float = 0.05
+@export var base_stiffness: float = 1000.0
+@export var base_damping: float = 50.0
+@export var max_fluid_temp: float = 120.0
+@export var viscosity: float = 0.05
+@export var viscosity_curve: Curve
+@export var thermal_efficiency_curve: Curve
 
 # Referência ao tipo de engrenagem da transmissão
 var transmission_gear_type = Transmission.GearType.HELICAL

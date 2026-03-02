@@ -11,32 +11,32 @@ enum Drivetrain {FWD, RWD, AWD}
 enum GearType { HELICAL, STRAIGHT }  # Helicoidais (padrão) vs Retas (competição)
 
 # Configuração
-export(Type) var type = Type.MANUAL
-export(Drivetrain) var drivetrain = Drivetrain.RWD
-export(GearType) var gear_type = GearType.HELICAL
-export(Array, float) var gear_ratios = [3.5, 2.5, 1.8, 1.3, 1.0, 0.8]
-export(float) var final_drive = 3.5
-export(float) var shift_time = 0.3
-export(float) var shift_quality = 1.0
-export(float) var max_temp = 150.0
-export(float) var power_shift_penalty = 2.0
-export(float) var dry_shift_damage = 0.05
-export(Curve) var clutch_curve
-export(Curve) var torque_converter_curve
-export(Curve) var cvt_ratio_curve
-export(Curve) var wear_curve
-export(Curve) var thermal_efficiency_curve
+@export var type: Type = Type.MANUAL
+@export var drivetrain: Drivetrain = Drivetrain.RWD
+@export var gear_type: GearType = GearType.HELICAL
+@export var gear_ratios: Array[float] = [3.5, 2.5, 1.8, 1.3, 1.0, 0.8]
+@export var final_drive: float = 3.5
+@export var shift_time: float = 0.3
+@export var shift_quality: float = 1.0
+@export var max_temp: float = 150.0
+@export var power_shift_penalty: float = 2.0
+@export var dry_shift_damage: float = 0.05
+@export var clutch_curve: Curve
+@export var torque_converter_curve: Curve
+@export var cvt_ratio_curve: Curve
+@export var wear_curve: Curve
+@export var thermal_efficiency_curve: Curve
 
 # Propriedades específicas por tipo de engrenagem
-export(float) var helical_gear_efficiency = 0.96  # 96% de eficiência
-export(float) var helical_gear_noise_multiplier = 0.7  # 70% do ruído
-export(float) var helical_gear_wear_rate = 1.0  # desgaste normal
-export(float) var helical_impact_resistance = 0.6  # Menor resistência a impactos
+@export var helical_gear_efficiency: float = 0.96  # 96% de eficiência
+@export var helical_gear_noise_multiplier: float = 0.7  # 70% do ruído
+@export var helical_gear_wear_rate: float = 1.0  # desgaste normal
+@export var helical_impact_resistance: float = 0.6  # Menor resistência a impactos
 
-export(float) var straight_gear_efficiency = 0.99  # 99% de eficiência
-export(float) var straight_gear_noise_multiplier = 2.0  # 2x mais ruído
-export(float) var straight_gear_wear_rate = 1.8  # 80% mais desgaste
-export(float) var straight_impact_resistance = 1.8  # 80% mais resistência a impactos
+@export var straight_gear_efficiency: float = 0.99  # 99% de eficiência
+@export var straight_gear_noise_multiplier: float = 2.0  # 2x mais ruído
+@export var straight_gear_wear_rate: float = 1.8  # 80% mais desgaste
+@export var straight_impact_resistance: float = 1.8  # 80% mais resistência a impactos
 
 # Estado
 var current_gear = 0

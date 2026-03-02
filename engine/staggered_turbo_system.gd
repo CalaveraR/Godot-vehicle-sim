@@ -1,9 +1,11 @@
 class_name StaggeredTurboSystem
 extends TwinTurboSystem
+# Gerencia configuracoes de turbo em estagios.
+# Herda de TwinTurboSystem e alimenta Engine/TurboSystem com boost combinado.
 
 enum StaggeredMode { SIZE_DIFFERENCE, ELECTRIC_ASSIST, SUPERCHARGER_PRIMARY }
 
-export(StaggeredMode) var staggered_mode = StaggeredMode.SIZE_DIFFERENCE
+@export var staggered_mode: StaggeredMode = StaggeredMode.SIZE_DIFFERENCE
 var electric_turbo: ElectricTurboSystem = null
 var supercharger: SuperchargerSystem = null
 

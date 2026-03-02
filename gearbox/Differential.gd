@@ -4,12 +4,12 @@ extends Node
 enum LSDType {OPEN, LIMITED_SLIP, LOCKED}
 
 # Configuração
-export(LSDType) var lsd_type = LSDType.LIMITED_SLIP
-export(float) var max_temp = 120.0
-export(Curve) var torque_split_curve
-export(Curve) var bias_curve
-export(Curve) var thermal_curve
-export(Curve) var friction_curve
+@export var lsd_type: LSDType = LSDType.LIMITED_SLIP
+@export var max_temp: float = 120.0
+@export var torque_split_curve: Curve
+@export var bias_curve: Curve
+@export var thermal_curve: Curve
+@export var friction_curve: Curve
 
 # Estado
 var wheel_torques = [0.0, 0.0, 0.0, 0.0]

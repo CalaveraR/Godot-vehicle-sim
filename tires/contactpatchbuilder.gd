@@ -141,14 +141,14 @@ func _get_grid_width() -> int:
 # -----------------------------------------------------------------------------
 # NOTAS DE RESPONSABILIDADE
 # -----------------------------------------------------------------------------
-# ✅ Responsabilidades cumpridas:
+#  Responsabilidades cumpridas:
 #   - Blend de dados de múltiplas fontes (shader + raycast)
 #   - Fallback completo para normais zero
 #   - Filtragem de amostras inválidas
 #   - Construção do ContactPatch com timestamp
 #   - Separação de parâmetros via ContactPolicy (extensível)
 #
-# ❌ Não é responsável por:
+#  Não é responsável por:
 #   - Aplicação de forças físicas
 #   - Modificação da simulação
 #   - Decisões de gameplay

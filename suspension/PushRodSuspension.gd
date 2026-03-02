@@ -1,8 +1,10 @@
 class_name PushRodSuspension
 extends SuspensionSystem
+# Modelo push-rod para transmissao de carga da roda.
+# Usado por SuspensionSystem quando o tipo de suspensao selecionado e push-rod.
 
-export var rocker_ratio = 1.5
-export var pushrod_angle = 0.3
+@export var rocker_ratio = 1.5
+@export var pushrod_angle = 0.3
 
 func _ready():
     suspension_type = SUSPENSION_TYPE.PUSH_ROD

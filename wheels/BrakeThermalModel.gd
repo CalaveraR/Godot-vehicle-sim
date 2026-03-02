@@ -1,13 +1,13 @@
 class_name BrakeThermalModel
 extends Node
 
-export var convection_coefficient := 15.0
-export var radiation_coefficient := 0.000001
-export var disc_to_pad_conductivity := 100.0
-export var pad_to_caliper_conductivity := 50.0
-export(Curve) var wheel_heat_resistance_curve
-export(Curve) var hydraulic_efficiency_curve
-export(Curve) var pad_wear_curve
+@export var convection_coefficient := 15.0
+@export var radiation_coefficient := 0.000001
+@export var disc_to_pad_conductivity := 100.0
+@export var pad_to_caliper_conductivity := 50.0
+@export var wheel_heat_resistance_curve: Curve
+@export var hydraulic_efficiency_curve: Curve
+@export var pad_wear_curve: Curve
 
 var aerodynamic_blockage := 0.0
 var ambient_temperature := 20.0

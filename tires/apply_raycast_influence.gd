@@ -31,15 +31,15 @@ func apply_raycast_influence(
     var limits = influence_contract.get("limits", {})
     var weights = influence_contract.get("weights", {})
     
-    # 🔹 MODO "CLAMP" - Apenas limites físicos
+    #  MODO "CLAMP" - Apenas limites físicos
     if mode == "clamp":
         result_state = _apply_clamp_mode(result_state, targets, limits)
     
-    # 🔹 MODO "BIAS" - Interpolação ponderada
+    #  MODO "BIAS" - Interpolação ponderada
     elif mode == "bias":
         result_state = _apply_bias_mode(result_state, targets, limits, weights)
     
-    # 🔹 MODO "FALLBACK" - Dados mínimos de emergência
+    #  MODO "FALLBACK" - Dados mínimos de emergência
     elif mode == "fallback":
         result_state = _apply_fallback_mode(result_state, limits)
     

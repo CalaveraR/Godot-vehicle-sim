@@ -11,29 +11,29 @@ enum SUSPENSION_TYPE {
     AIR
 }
 
-export(SUSPENSION_TYPE) var suspension_type = SUSPENSION_TYPE.MACPHERSON
-export var base_vertical_stiffness = 150000.0
-export var min_effective_radius = 0.1
-export var tire_radius = 0.3
-export var tire_width = 0.2
-export var motion_ratio = 0.7
-export var unsprung_mass = 25.0
-export var bushing_stiffness = 10000.0
-export(Curve) var load_transfer_curve
-export(Curve) var deformation_x_curve
-export(Curve) var deformation_y_curve
-export(Curve) var deformation_z_curve
-export(Curve) var camber_variation_curve
-export(Curve) var caster_variation_curve
-export(Curve) var toe_variation_curve
-export(Curve) var vertical_stiffness_curve
-export(Curve) var dynamic_radius_curve
-export(Curve) var relaxation_length_curve
-export(Curve) var lateral_deformation_curve
-export(Curve) var flat_spot_radius_curve
-export(Curve) var response_to_lateral_flex_curve
-export(Curve) var response_to_longitudinal_flex_curve
-export(Curve) var vibration_absorption_curve
+@export var suspension_type: SUSPENSION_TYPE = SUSPENSION_TYPE.MACPHERSON
+@export var base_vertical_stiffness = 150000.0
+@export var min_effective_radius = 0.1
+@export var tire_radius = 0.3
+@export var tire_width = 0.2
+@export var motion_ratio = 0.7
+@export var unsprung_mass = 25.0
+@export var bushing_stiffness = 10000.0
+@export var load_transfer_curve: Curve
+@export var deformation_x_curve: Curve
+@export var deformation_y_curve: Curve
+@export var deformation_z_curve: Curve
+@export var camber_variation_curve: Curve
+@export var caster_variation_curve: Curve
+@export var toe_variation_curve: Curve
+@export var vertical_stiffness_curve: Curve
+@export var dynamic_radius_curve: Curve
+@export var relaxation_length_curve: Curve
+@export var lateral_deformation_curve: Curve
+@export var flat_spot_radius_curve: Curve
+@export var response_to_lateral_flex_curve: Curve
+@export var response_to_longitudinal_flex_curve: Curve
+@export var vibration_absorption_curve: Curve
 
 var effective_radius = 0.3
 var total_load = 0.0

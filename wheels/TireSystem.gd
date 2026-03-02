@@ -1,45 +1,47 @@
 class_name TireSystem
 extends Node
+# Sistema principal de forcas, desgaste e temperatura do pneu.
+# Conecta WheelDynamics, SuspensionSystem e modelos internos de termica e aquaplanagem.
 
-export var max_friction = 1.5
-export var base_lateral_stiffness = 30000.0
-export var base_camber_stiffness = 1000.0
-export var base_carcass_stiffness = 10000.0
-export var pneumatic_trail_max = 0.03
-export var base_wear_rate = 0.00001
-export var base_heat_generation = 0.0001
-export var flex_heat_factor = 0.0005
-export var cooling_rate = 0.1
-export var ambient_temperature = 20.0
-export var tire_pressure = 220.0
-export var min_tire_wear = 0.1
-export var ground_grip_factor = 1.0
-export var water_depth = 0.0
-export var aquaplaning_threshold = 0.005
-export var track_texture = 1.0
-export var contact_area = 0.02
-export(Curve) var temperature_wear_curve
-export(Curve) var slip_angle_curve_180
-export(Curve) var pressure_variation_curve
-export(Curve) var contamination_grip_curve
-export(Curve) var cold_tire_grip_curve
-export(Curve) var carcass_flex_x_curve
-export(Curve) var carcass_flex_y_curve
-export(Curve) var carcass_flex_z_curve
-export(Curve) var tread_deflection_curve
-export(Curve) var longitudinal_curve
-export(Curve) var lateral_curve
-export(Curve) var combined_slip_curve
-export(Curve) var load_sensitivity_curve
-export(Curve) var temperature_friction_curve
-export(Curve) var pressure_friction_curve
-export(Curve) var camber_curve
-export(Curve) var pneumatic_trail_curve
-export(Curve) var aligning_torque_curve
-export(Curve) var track_texture_wear_curve
-export(Curve) var reverse_aligning_curve
-export(Curve) var compound_hardness_curve
-export(Curve) var aquaplaning_risk_curve
+@export var max_friction = 1.5
+@export var base_lateral_stiffness = 30000.0
+@export var base_camber_stiffness = 1000.0
+@export var base_carcass_stiffness = 10000.0
+@export var pneumatic_trail_max = 0.03
+@export var base_wear_rate = 0.00001
+@export var base_heat_generation = 0.0001
+@export var flex_heat_factor = 0.0005
+@export var cooling_rate = 0.1
+@export var ambient_temperature = 20.0
+@export var tire_pressure = 220.0
+@export var min_tire_wear = 0.1
+@export var ground_grip_factor = 1.0
+@export var water_depth = 0.0
+@export var aquaplaning_threshold = 0.005
+@export var track_texture = 1.0
+@export var contact_area = 0.02
+@export var temperature_wear_curve: Curve
+@export var slip_angle_curve_180: Curve
+@export var pressure_variation_curve: Curve
+@export var contamination_grip_curve: Curve
+@export var cold_tire_grip_curve: Curve
+@export var carcass_flex_x_curve: Curve
+@export var carcass_flex_y_curve: Curve
+@export var carcass_flex_z_curve: Curve
+@export var tread_deflection_curve: Curve
+@export var longitudinal_curve: Curve
+@export var lateral_curve: Curve
+@export var combined_slip_curve: Curve
+@export var load_sensitivity_curve: Curve
+@export var temperature_friction_curve: Curve
+@export var pressure_friction_curve: Curve
+@export var camber_curve: Curve
+@export var pneumatic_trail_curve: Curve
+@export var aligning_torque_curve: Curve
+@export var track_texture_wear_curve: Curve
+@export var reverse_aligning_curve: Curve
+@export var compound_hardness_curve: Curve
+@export var aquaplaning_risk_curve: Curve
 
 var surface_temperature = 20.0
 var core_temperature = 20.0
@@ -71,11 +73,11 @@ signal tire_screech(intensity)
 signal aquaplaning_started
 signal aquaplaning_ended
 
-onready var thermal_model = $ThermalModel
-onready var wear_model = $WearModel
-onready var aquaplaning_model = $AquaplaningModel
-onready var gyroscopic_model = $GyroscopicModel
-onready var deformation_model = $DeformationModel
+@onready var thermal_model = $ThermalModel
+@onready var wear_model = $WearModel
+@onready var aquaplaning_model = $AquaplaningModel
+@onready var gyroscopic_model = $GyroscopicModel
+@onready var deformation_model = $DeformationModel
 
 func _ready():
     original_pressure = tire_pressure

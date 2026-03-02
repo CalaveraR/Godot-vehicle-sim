@@ -1,8 +1,10 @@
 class_name PullRodSuspension
 extends SuspensionSystem
+# Modelo pull-rod para transmissao de carga da roda.
+# Usado por SuspensionSystem quando o tipo de suspensao selecionado e pull-rod.
 
-export var rocker_ratio = 1.7
-export var pullrod_angle = -0.2
+@export var rocker_ratio = 1.7
+@export var pullrod_angle = -0.2
 
 func _ready():
     suspension_type = SUSPENSION_TYPE.PULL_ROD

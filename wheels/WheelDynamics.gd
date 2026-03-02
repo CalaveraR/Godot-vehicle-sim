@@ -1,11 +1,11 @@
 class_name WheelDynamics
 extends Node
 
-export var wheel_mass = 20.0
-export var gyroscopic_factor = 0.1
-export var rolling_resistance = 0.015
-export(Curve) var aerodynamic_drag_curve
-export(Curve) var rolling_resistance_curve
+@export var wheel_mass = 20.0
+@export var gyroscopic_factor = 0.1
+@export var rolling_resistance = 0.015
+@export var aerodynamic_drag_curve: Curve
+@export var rolling_resistance_curve: Curve
 
 var wheel_angular_velocity = 0.0
 var wheel_angular_acceleration = 0.0
