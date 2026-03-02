@@ -1,4 +1,8 @@
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PatchSample {
     pub weight: f32,
     pub penetration: f32,
@@ -7,6 +11,7 @@ pub struct PatchSample {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PatchAggregate {
     pub contact_confidence: f32,
     pub penetration_avg: f32,
@@ -16,11 +21,37 @@ pub struct PatchAggregate {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TireCoreConventions {
     pub epsilon: f32,
     pub min_stiffness: f32,
     pub min_positive_weight: f32,
     pub contact_penetration_threshold: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct WheelStateMirror {
+    pub linear_velocity_ws: [f32; 3],
+    pub angular_velocity_ws: [f32; 3],
+    pub tire_radius: f32,
+    pub tire_width: f32,
+    pub camber: f32,
+    pub toe: f32,
+    pub steer_input: f32,
+    pub throttle_input: f32,
+    pub brake_input: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TireForcesMirror {
+    pub fx: f32,
+    pub fy: f32,
+    pub fz: f32,
+    pub mz: f32,
+    pub center_of_pressure_ws: [f32; 3],
+    pub contact_confidence: f32,
 }
 
 impl Default for TireCoreConventions {
@@ -32,6 +63,64 @@ impl Default for TireCoreConventions {
             contact_penetration_threshold: 0.0,
         }
     }
+}
+
+impl Default for WheelStateMirror {
+    fn default() -> Self {
+        Self {
+            linear_velocity_ws: [0.0, 0.0, 0.0],
+            angular_velocity_ws: [0.0, 0.0, 0.0],
+            tire_radius: 0.0,
+            tire_width: 0.0,
+            camber: 0.0,
+            toe: 0.0,
+            steer_input: 0.0,
+            throttle_input: 0.0,
+            brake_input: 0.0,
+        }
+    }
+}
+
+impl Default for TireForcesMirror {
+    fn default() -> Self {
+        Self {
+            fx: 0.0,
+            fy: 0.0,
+            fz: 0.0,
+            mz: 0.0,
+            center_of_pressure_ws: [0.0, 0.0, 0.0],
+            contact_confidence: 0.0,
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+pub fn serialize_wheel_state(state: &WheelStateMirror) -> Result<String, serde_json::Error> {
+    serde_json::to_string(state)
+}
+
+#[cfg(feature = "serde")]
+pub fn serialize_tire_forces(forces: &TireForcesMirror) -> Result<String, serde_json::Error> {
+    serde_json::to_string(forces)
+}
+
+#[cfg(feature = "serde")]
+pub fn deserialize_wheel_state(payload: &str) -> Result<WheelStateMirror, serde_json::Error> {
+    serde_json::from_str(payload)
+}
+
+#[cfg(feature = "serde")]
+pub fn deserialize_tire_forces(payload: &str) -> Result<TireForcesMirror, serde_json::Error> {
+    serde_json::from_str(payload)
+}
+
+#[cfg(feature = "validator")]
+pub fn validate_wheel_state(state: &WheelStateMirror) -> bool {
+    state.tire_radius >= 0.0
+        && state.tire_width >= 0.0
+        && state.steer_input.is_finite()
+        && state.throttle_input.is_finite()
+        && state.brake_input.is_finite()
 }
 
 pub fn normalize_weights(weights: &[f32]) -> Vec<f32> {
@@ -195,5 +284,19 @@ mod tests {
             },
         );
         assert_eq!(patch.contact_confidence, 0.0);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip_wheel_state() {
+        let s = WheelStateMirror {
+            tire_radius: 0.34,
+            throttle_input: 0.7,
+            ..WheelStateMirror::default()
+        };
+        let payload = serialize_wheel_state(&s).unwrap();
+        let restored = deserialize_wheel_state(&payload).unwrap();
+        assert_eq!(restored.tire_radius, 0.34);
+        assert_eq!(restored.throttle_input, 0.7);
     }
 }

@@ -13,6 +13,8 @@ func update_contact_data(
 	contact_forces: Array,
 	contact_grips: Array
 ) -> void:
+	if not raycast_root:
+		return
 	contact_points.clear()
 	contact_normals.clear()
 	contact_forces.clear()
@@ -85,6 +87,8 @@ func apply_clipping_overlaps(
 	clipping_area: Area3D,
 	apply_clipping_force_cb: Callable
 ) -> void:
+	if not clipping_area:
+		return
 	for body in clipping_area.get_overlapping_bodies():
 		if body is RigidBody3D:
 			apply_clipping_force_cb.call(body)

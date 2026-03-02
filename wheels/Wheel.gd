@@ -10,7 +10,7 @@ enum Gear { REVERSE = -1, NEUTRAL = 0, DRIVE = 1 }
 @onready var flat_spot = $FlatSpotSystem
 @onready var suspension_response = $SuspensionResponseSystem
 @onready var wheel_assembly = $WheelAssemblySystem
-@onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator") if has_node("TireRuntimeCoordinator") else get_node_or_null("HybridTireSystem")
+@onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator")
 
 var current_engine_torque = 0.0
 var gear = Gear.DRIVE
@@ -26,7 +26,8 @@ signal flat_spot_sound(intensity)
 
 func _ready():
     car_body = get_parent()
-    wheel_assembly.apply_to_systems()
+    if wheel_assembly:
+        wheel_assembly.apply_to_systems()
 
     # Guard rail: nunca deixe coordinator e legacy rodando em paralelo.
     if has_node("TireRuntimeCoordinator") and has_node("HybridTireSystem"):
@@ -39,75 +40,78 @@ func _physics_process(delta):
     if car_body:
         lateral_g = car_body.linear_velocity.cross(car_body.angular_velocity).y / 9.81
     
-    suspension_response.calculate_dynamic_response(car_body, suspension.total_load, lateral_g)
-    suspension_response.apply_response(suspension)
+    if suspension_response and suspension:
+        suspension_response.calculate_dynamic_response(car_body, suspension.total_load, lateral_g)
+        suspension_response.apply_response(suspension)
     
     var unified_data: ContactPatchData = ContactPatchData.new()
-    if tire_runtime:
-        if tire_runtime.has_method("step_runtime_pipeline"):
-            unified_data = tire_runtime.step_runtime_pipeline(delta, true)
-        else:
-            tire_runtime.update_contact_data()
-            unified_data = tire_runtime.calculate_unified_data()
-            tire_runtime.apply_to_suspension(unified_data)
-            tire_runtime.apply_to_wheel(unified_data)
-            tire_runtime.apply_to_tire_system(unified_data, delta)
+    if tire_runtime and tire_runtime.has_method("step_runtime_pipeline"):
+        unified_data = tire_runtime.step_runtime_pipeline(delta)
     
-    var flat_spot_depth = flat_spot.get_flat_spot_depth()
-    suspension.update_effective_radius(flat_spot_depth, unified_data.max_pressure)
+    var flat_spot_depth = flat_spot.get_flat_spot_depth() if flat_spot else 0.0
+    if suspension:
+        suspension.update_effective_radius(flat_spot_depth, unified_data.max_pressure)
     
-    brake.update(delta)
+    if brake:
+        brake.update(delta)
     
-    flat_spot.update(
-        delta,
-        dynamics.get_angular_velocity(),
-        dynamics.is_dragging,
-        tire.surface_temperature,
-        suspension.total_load
-    )
+    if flat_spot and dynamics and tire and suspension:
+        flat_spot.update(
+            delta,
+            dynamics.get_angular_velocity(),
+            dynamics.is_dragging,
+            tire.surface_temperature,
+            suspension.total_load
+        )
     
-    var flat_spot_torque_factor = flat_spot.get_torque_factor(
-        dynamics.get_angular_velocity(),
-        suspension.total_load
-    )
+    var flat_spot_torque_factor = 1.0
+    if flat_spot and dynamics and suspension:
+        flat_spot_torque_factor = flat_spot.get_torque_factor(
+            dynamics.get_angular_velocity(),
+            suspension.total_load
+        )
     
-    dynamics.update(
-        delta,
-        current_engine_torque * gear * flat_spot_torque_factor,
-        brake.get_brake_torque(),
-        suspension.total_load,
-        suspension.get_relaxation_factor(),
-        car_body,
-        unified_data.contact_data,
-        global_transform
-    )
+    if dynamics and brake and suspension:
+        dynamics.update(
+            delta,
+            current_engine_torque * gear * flat_spot_torque_factor,
+            brake.get_brake_torque(),
+            suspension.total_load,
+            suspension.get_relaxation_factor(),
+            car_body,
+            unified_data.contact_data,
+            global_transform
+        )
     
-    tire.update(
-        delta,
-        suspension.total_load,
-        dynamics.get_wheel_slip().x,
-        dynamics.get_wheel_slip().y,
-        dynamics.get_angular_velocity(),
-        suspension.get_dynamic_camber(),
-        car_body,
-        suspension.get_effective_radius(),
-        suspension.get_relaxation_factor(),
-        suspension.get_lateral_deformation()
-    )
-    
-    var tire_deformation = tire.get_contact_patch_deformation()
-    var vibration_level = flat_spot.get_vibration() * (1.0 - suspension.get_absorbed_vibration())
-    suspension.respond_to_tire_elasticity(tire_deformation, vibration_level)
-    
-    suspension.update_suspension_geometry(suspension.total_load)
+    if tire and dynamics and suspension:
+        tire.update(
+            delta,
+            suspension.total_load,
+            dynamics.get_wheel_slip().x,
+            dynamics.get_wheel_slip().y,
+            dynamics.get_angular_velocity(),
+            suspension.get_dynamic_camber(),
+            car_body,
+            suspension.get_effective_radius(),
+            suspension.get_relaxation_factor(),
+            suspension.get_lateral_deformation()
+        )
+
+    if tire and flat_spot and suspension:
+        var tire_deformation = tire.get_contact_patch_deformation()
+        var vibration_level = flat_spot.get_vibration() * (1.0 - suspension.get_absorbed_vibration())
+        suspension.respond_to_tire_elasticity(tire_deformation, vibration_level)
+
+    if suspension:
+        suspension.update_suspension_geometry(suspension.total_load)
     
     sync_with_surface()
     process_effects_and_signals(delta)
     
-    if suspension.suspension_type == SuspensionSystem.SUSPENSION_TYPE.SOLID_AXLE:
+    if suspension and suspension.suspension_type == SuspensionSystem.SUSPENSION_TYPE.SOLID_AXLE:
         suspension.update_suspension_geometry(suspension.total_load)
-    
-    if suspension.suspension_type == SuspensionSystem.SUSPENSION_TYPE.AIR:
+
+    if suspension and tire and suspension.suspension_type == SuspensionSystem.SUSPENSION_TYPE.AIR:
         var temp_factor = 1.0 - (tire.core_temperature - 20.0) * 0.01
         suspension.air_pressure *= temp_factor
 
@@ -116,6 +120,9 @@ func sync_with_surface():
         var sm = Engine.get_singleton("SurfaceManager")
         var wheel_pos = global_transform.origin
         
+        if not tire:
+            return
+
         tire.set_water_depth(sm.get_water_depth(wheel_pos))
         
         var surface_data = sm.get_surface_data(wheel_pos)
@@ -129,6 +136,9 @@ func sync_with_surface():
             tire.set_ground_grip(surface_data.grip_factor)
 
 func process_effects_and_signals(delta):
+    if not tire or not dynamics or not flat_spot:
+        return
+
     if tire.breakaway_counter > 0.3 and abs(dynamics.wheel_slip_angle) > 0.5:
         emit_signal("tire_screech", min(tire.breakaway_counter, 1.0))
     

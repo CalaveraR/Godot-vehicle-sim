@@ -181,6 +181,8 @@ func get_clipping_ratio(body: Node3D) -> float:
 	return _surface_response.get_clipping_ratio(body, clipping_area, max_penetration_depth)
 
 func _stage_read_samples() -> void:
+	if not raycast_root:
+		return
 	update_contact_data()
 
 func _stage_aggregate_patch() -> ContactPatchData:
@@ -188,10 +190,13 @@ func _stage_aggregate_patch() -> ContactPatchData:
 
 func _stage_apply_forces(unified_data: ContactPatchData, step_dt: float) -> void:
 	# Ordem determinística: surface response -> suspension bridge -> output forces
+	if not unified_data:
+		return
 	apply_to_tire_system(unified_data, step_dt)
 	apply_to_suspension(unified_data)
 	apply_to_wheel(unified_data)
-	_contact_runtime.apply_clipping_overlaps(clipping_area, Callable(self, "apply_clipping_forces"))
+	if clipping_area:
+		_contact_runtime.apply_clipping_overlaps(clipping_area, Callable(self, "apply_clipping_forces"))
 
 func _should_step(delta: float) -> bool:
 	var step_dt := 1.0 / maxf(fixed_tick_hz, 1.0)
@@ -201,8 +206,8 @@ func _should_step(delta: float) -> bool:
 	_time_accumulator -= step_dt
 	return true
 
-func step_runtime_pipeline(delta: float = 0.0, force: bool = false) -> ContactPatchData:
-	if not force and not _should_step(delta):
+func step_runtime_pipeline(delta: float = 0.0) -> ContactPatchData:
+	if not _should_step(delta):
 		return ContactPatchData.new()
 
 	# Ordem determinística: leitura -> agregação -> aplicação no corpo
