@@ -18,7 +18,7 @@ func step_wheel(
 	var normalized := _normalize_and_aggregate(merged)
 	var out := TireForces.new()
 	out.contact_confidence = float(normalized.get("contact_confidence", patch.patch_confidence))
-	out.center_of_pressure_ws = patch.center_of_pressure_ws
+	out.center_of_pressure_ws = _center_of_pressure_ws(merged, patch.normalized_weights)
 
 	if patch.patch_confidence < confidence_min_for_contact and raycast_samples.is_empty():
 		out.Fz = _smooth_to_zero(previous_fz, dt)
@@ -106,3 +106,12 @@ func _normalize_and_aggregate(samples: Array[TireSample]) -> Dictionary:
 			"slip_y": sample.slip_vector.y,
 		}
 	return TireCoreReference.aggregate_patch(mapped, conventions)
+
+
+func _center_of_pressure_ws(samples: Array[TireSample], normalized_weights: Array) -> Vector3:
+	if samples.is_empty() or normalized_weights.is_empty():
+		return Vector3.ZERO
+	var acc := Vector3.ZERO
+	for i in range(min(samples.size(), normalized_weights.size())):
+		acc += samples[i].contact_pos_ws * float(normalized_weights[i])
+	return acc
