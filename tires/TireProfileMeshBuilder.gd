@@ -1,8 +1,7 @@
 class_name TireProfileMeshBuilder
 extends RefCounted
 
-# Gera malha de perfil do pneu por revolução radial.
-# A curva 2D representa o perfil horizontal editável por modders.
+
 func build_profile_mesh(
 	curve_profile: Curve2D,
 	tire_width: float,
@@ -11,7 +10,7 @@ func build_profile_mesh(
 	vertical_zones: int,
 	radial_zones: int
 ) -> ArrayMesh:
-	var safe_vertical := max(vertical_zones, 2)
+
 	var safe_radial := max(radial_zones, 3)
 
 	var surface_tool := SurfaceTool.new()

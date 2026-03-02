@@ -24,11 +24,11 @@ func build_contact_patch(
 	raycast_samples: Array[TireSample],
 	history: TemporalHistory
 ) -> ContactPatch:
-	
+
 	var blended_samples = _blend_samples(shader_samples, raycast_samples, history)
 	var valid_samples = _filter_valid_samples(blended_samples)
 	var time = Time.get_ticks_msec() / 1000.0
-	
+
 	return ContactPatch.new(valid_samples, time)
 
 
@@ -42,35 +42,35 @@ func _blend_samples(
 	raycast_samples: Array[TireSample],
 	history: TemporalHistory
 ) -> Array[TireSample]:
-	
+
 	var blended: Array[TireSample] = []
 	var threshold = _get_confidence_threshold()
-	
+
 	for shader_sample in shader_samples:
-		var blended_sample = shader_sample.duplicate()
-		
+		var blended_sample = shader_sample.copy()
+
 		# Confiança baixa → busca raycast próximo para blend
 		if shader_sample.confidence < threshold:
 			var nearest_raycast = _find_nearest_raycast(
 				shader_sample.grid_x,
 				raycast_samples
 			)
-			
+
 			if nearest_raycast:
 				# Fator de blend = 1 - confiança (quanto menor a confiança, mais raycast)
 				var blend = 1.0 - shader_sample.confidence
-				
+
 				# Penetração: blend linear
 				blended_sample.penetration = lerp(
 					shader_sample.penetration,
 					nearest_raycast.penetration,
 					blend
 				)
-				
+
 				# --- TRATAMENTO ROBUSTO DE NORMAL ZERO ---
 				# Se a normal do shader for zero, confiança é ignorada e usamos fallback completo.
 				var use_full_raycast_normal = shader_sample.normal == Vector3.ZERO
-				
+
 				if use_full_raycast_normal:
 					blended_sample.normal = nearest_raycast.normal
 				else:
@@ -79,7 +79,7 @@ func _blend_samples(
 						nearest_raycast.normal,
 						min(blend, 1.0)
 					)
-				
+
 				# Confiança final: maior entre as duas fontes (ou no mínimo 0.1 para evitar filtragem)
 				blended_sample.confidence = max(
 					shader_sample.confidence,
@@ -87,9 +87,9 @@ func _blend_samples(
 					0.1
 				)
 				blended_sample.source_type = TireSample.SOURCE_BLENDED
-		
+
 		blended.append(blended_sample)
-	
+
 	return blended
 
 
@@ -97,13 +97,13 @@ func _blend_samples(
 func _find_nearest_raycast(grid_x: int, raycasts: Array[TireSample]) -> TireSample:
 	var best: TireSample = null
 	var best_dist = INF
-	
+
 	for raycast in raycasts:
 		var dist = abs(raycast.grid_x - grid_x)
 		if dist < best_dist:
 			best_dist = dist
 			best = raycast
-	
+
 	return best
 
 
@@ -113,11 +113,11 @@ func _find_nearest_raycast(grid_x: int, raycasts: Array[TireSample]) -> TireSamp
 # Mantém apenas amostras com penetração positiva e confiança > 0.
 func _filter_valid_samples(samples: Array[TireSample]) -> Array[TireSample]:
 	var valid: Array[TireSample] = []
-	
+
 	for sample in samples:
 		if sample.penetration > 0.0 and sample.confidence > 0.0:
 			valid.append(sample)
-	
+
 	return valid
 
 
@@ -152,3 +152,11 @@ func _get_grid_width() -> int:
 #   - Aplicação de forças físicas
 #   - Modificação da simulação
 #   - Decisões de gameplay
+
+func build_contact_patch_data(
+	shader_samples: Array[TireSample],
+	raycast_samples: Array[TireSample],
+	history: TemporalHistory
+) -> ContactPatchData:
+	var patch := build_contact_patch(shader_samples, raycast_samples, history)
+	return ContactPatchData.from_samples(patch.samples)
