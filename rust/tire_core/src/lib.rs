@@ -1,3 +1,5 @@
+//! [CORE_RS] tire_core
+//! Deterministic Rust golden core for tire logic parity.
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 

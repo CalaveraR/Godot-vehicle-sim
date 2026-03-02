@@ -1,3 +1,5 @@
+# [CORE_GD] TireCore
+# Deterministic tire core mirror target for Rust parity.
 class_name TireCore
 extends RefCounted
 

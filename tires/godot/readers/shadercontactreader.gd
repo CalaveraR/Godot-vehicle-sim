@@ -1,3 +1,5 @@
+# [ENGINE] ShaderContactReader
+# Engine-facing shader readback/sampling.
 class_name ShaderContactReader
 extends Node3D
 

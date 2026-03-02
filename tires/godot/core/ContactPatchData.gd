@@ -1,3 +1,5 @@
+# [CORE_GD] ContactPatchData
+# Deterministic aggregation contract for patch-level data.
 class_name ContactPatchData
 extends RefCounted
 
