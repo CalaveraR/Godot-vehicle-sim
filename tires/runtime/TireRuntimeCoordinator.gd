@@ -1,6 +1,9 @@
 class_name TireRuntimeCoordinator
 extends Node3D
 
+# Single Authority Rule: este é o único entrypoint autorizado
+# para executar o pipeline de pneu e aplicar forças no body.
+
 @export var tire_width: float = 0.305
 @export var tire_diameter: float = 0.720
 @export var rim_diameter: float = 0.4572

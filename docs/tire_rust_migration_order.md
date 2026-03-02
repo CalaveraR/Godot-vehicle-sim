@@ -88,3 +88,8 @@ ajustes em runtime sejam fáceis e reproduzíveis entre as duas linguagens.
 - TireRuntimeCoordinator único entrypoint operacional (`step_runtime_pipeline`).
 - Projeto abre sem erro de script e roda ao menos 1 veículo no runtime novo.
 - `cargo test` em `rust/tire_core` passa.
+
+
+## 9) Referência operacional
+
+A referência de arquitetura em 3 camadas, pipeline por tick e contratos está em `docs/tire_runtime_architecture.md`.
