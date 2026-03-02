@@ -27,7 +27,7 @@ var original_brake_torque := 1500.0
 @onready var tire: TireSystem = $TireSystem
 @onready var dynamics: WheelDynamics = $WheelDynamics
 @onready var brake: BrakeSystem = $BrakeSystem
-@onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator") if has_node("TireRuntimeCoordinator") else get_node_or_null("HybridTireSystem")
+@onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator")
 
 func _ready():
     calculate_properties()

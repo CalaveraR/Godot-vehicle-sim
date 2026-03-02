@@ -1,7 +1,7 @@
 class_name StaggeredTurboSystem
 extends TwinTurboSystem
 # Gerencia configuracoes de turbo em estagios.
-# Herda de TwinTurboSystem e alimenta Engine/TurboSystem com boost combinado.
+# Herda de TwinTurboSystem e alimenta engine/TurboSystem com boost combinado.
 
 enum StaggeredMode { SIZE_DIFFERENCE, ELECTRIC_ASSIST, SUPERCHARGER_PRIMARY }
 
