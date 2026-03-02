@@ -1,6 +1,6 @@
 # res://core/contracts/ContractRateLimiter.gd
 class_name ContractRateLimiter
-extends RefCounted
+extends Node
 
 # -----------------------------------------------------------------------------
 #  RATE LIMITER E VALIDAÇÃO - VERSÃO UNIFICADA (SEM DUPLICAÇÃO DE CLASSE)
@@ -43,7 +43,7 @@ class ModeRateLimit:
 	var max_per_second: float = 10.0
 	var cooldown_seconds: float = 0.1
 	var priority: int = 0
-	
+
 	func _init(p_mode: int, p_max_per_second: float = 10.0, p_cooldown: float = 0.1, p_priority: int = 0):
 		mode = p_mode
 		max_per_second = p_max_per_second
@@ -54,7 +54,7 @@ class AuthorityRateLimit:
 	var authority: int
 	var max_per_second: float = 5.0
 	var cooldown_seconds: float = 0.2
-	
+
 	func _init(p_authority: int, p_max_per_second: float = 5.0, p_cooldown: float = 0.2):
 		authority = p_authority
 		max_per_second = p_max_per_second
@@ -108,7 +108,7 @@ func _setup_default_limits() -> void:
 	mode_limits[0] = ModeRateLimit.new(0, 20.0, 0.05, 1)   # MODE_CLAMP
 	mode_limits[1] = ModeRateLimit.new(1, 15.0, 0.1, 2)    # MODE_BIAS
 	mode_limits[2] = ModeRateLimit.new(2, 5.0, 0.2, 3)     # MODE_GEOMETRY_REFERENCE
-	
+
 	# Limites por autoridade
 	authority_limits[0] = AuthorityRateLimit.new(0, 100.0, 0.01)  # AUTHORITY_NONE
 	authority_limits[1] = AuthorityRateLimit.new(1, 30.0, 0.05)   # AUTHORITY_LOW
@@ -130,49 +130,49 @@ func can_create_contract(mode: int, authority: int, current_time: float = -1.0) 
 		- neutral_cache_available: bool (se há cache disponível)
 	"""
 	total_contracts_requested += 1
-	
+
 	if current_time < 0.0:
 		current_time = Time.get_ticks_msec() / 1000.0
-	
+
 	_reset_counters()
-	
+
 	# Verificações em ordem de prioridade
 	var mode_result = _check_mode_limit(mode, current_time)
 	if not mode_result.can_create:
 		total_contracts_limited += 1
 		return _build_deny_result("mode_limit", mode_result, _get_neutral_cache_available(mode, authority))
-	
+
 	var auth_result = _check_authority_limit(authority, current_time)
 	if not auth_result.can_create:
 		total_contracts_limited += 1
 		return _build_deny_result("authority_limit", auth_result, _get_neutral_cache_available(mode, authority))
-	
+
 	if mode == 2:  # MODE_GEOMETRY_REFERENCE
 		var geom_result = _check_geometry_fallback_cooldown(current_time)
 		if not geom_result.can_create:
 			total_contracts_limited += 1
 			return _build_deny_result("geometry_fallback_cooldown", geom_result, true)
-	
+
 	if limitation_mode == LimitationMode.LIMIT_ADAPTIVE:
 		var adaptive_result = _check_adaptive_limit(current_time)
 		if not adaptive_result.can_create:
 			total_contracts_limited += 1
 			return _build_deny_result("adaptive_limit", adaptive_result, true)
-	
+
 	# Se passou por todas as verificações
 	var key = _get_contract_key(mode, authority)
 	contracts_this_second[key] = contracts_this_second.get(key, 0) + 1
 	last_contract_time[key] = current_time
-	
+
 	_add_to_history({
 		"timestamp": current_time,
 		"mode": mode,
 		"authority": authority,
 		"allowed": true
 	})
-	
+
 	total_contracts_allowed += 1
-	
+
 	var result = {
 		"can_create": true,
 		"reason": "allowed",
@@ -186,6 +186,14 @@ func can_create_contract(mode: int, authority: int, current_time: float = -1.0) 
 	rate_limit_check.emit(result)
 	return result
 
+func check_rate_limit(owner_id: String, mode: int, authority: int, current_time: float = -1.0) -> Dictionary:
+	"""Wrapper de compatibilidade com orquestradores legados."""
+	var result = can_create_contract(mode, authority, current_time)
+	if not result.get("can_create", false):
+		contract_rate_limited.emit(mode, authority, result.get("reason", "rate_limited"))
+	result["owner_id"] = owner_id
+	return result
+
 func on_contract_created(mode: int, authority: int, current_time: float = -1.0) -> void:
 	"""
 	Registra que um contrato foi efetivamente criado.
@@ -193,11 +201,11 @@ func on_contract_created(mode: int, authority: int, current_time: float = -1.0) 
 	"""
 	if current_time < 0.0:
 		current_time = Time.get_ticks_msec() / 1000.0
-	
+
 	var key = _get_contract_key(mode, authority)
 	contracts_this_second[key] = contracts_this_second.get(key, 0) + 1
 	last_contract_time[key] = current_time
-	
+
 	_add_to_history({
 		"timestamp": current_time,
 		"mode": mode,
@@ -213,11 +221,11 @@ func get_neutral_contract(mode: int, authority: int) -> Dictionary:
 	"""
 	var cache_key = _get_cache_key(mode, authority)
 	var cached = neutral_contract_cache.get(cache_key, {})
-	
+
 	if not cached.is_empty():
 		var current_time = Time.get_ticks_msec() / 1000.0
 		var cache_time = cached.get("cache_timestamp", 0.0)
-		
+
 		if current_time - cache_time <= cache_ttl_seconds:
 			total_neutral_caches_used += 1
 			neutral_cache_used.emit(mode, authority)
@@ -225,7 +233,7 @@ func get_neutral_contract(mode: int, authority: int) -> Dictionary:
 			contract["from_cache"] = true
 			contract["cache_age"] = current_time - cache_time
 			return contract
-	
+
 	return _create_default_neutral_contract(mode, authority)
 
 func cache_neutral_contract(mode: int, authority: int, contract_data: Dictionary) -> void:
@@ -234,14 +242,14 @@ func cache_neutral_contract(mode: int, authority: int, contract_data: Dictionary
 	"""
 	var cache_key = _get_cache_key(mode, authority)
 	var current_time = Time.get_ticks_msec() / 1000.0
-	
+
 	neutral_contract_cache[cache_key] = {
 		"contract_data": contract_data.duplicate(),
 		"cache_timestamp": current_time,
 		"mode": mode,
 		"authority": authority
 	}
-	
+
 	if neutral_contract_cache.size() > cache_max_size:
 		_prune_oldest_cache_entry()
 
@@ -299,10 +307,10 @@ func _check_mode_limit(mode: int, current_time: float) -> Dictionary:
 	var limit = mode_limits.get(mode)
 	if not limit:
 		return {"can_create": true, "limit": 0.0, "current": 0, "wait_time": 0.0}
-	
+
 	var key = _get_mode_key(mode)
 	var count = contracts_this_second.get(key, 0)
-	
+
 	match limitation_mode:
 		LimitationMode.LIMIT_PER_SECOND:
 			if count >= limit.max_per_second:
@@ -319,10 +327,10 @@ func _check_authority_limit(authority: int, current_time: float) -> Dictionary:
 	var limit = authority_limits.get(authority)
 	if not limit:
 		return {"can_create": true, "limit": 0.0, "current": 0, "wait_time": 0.0}
-	
+
 	var key = _get_authority_key(authority)
 	var count = contracts_this_second.get(key, 0)
-	
+
 	match limitation_mode:
 		LimitationMode.LIMIT_PER_SECOND:
 			if count >= limit.max_per_second:

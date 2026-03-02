@@ -1,178 +1,45 @@
-# res://core/solver/PressureFieldSolver.gd
 class_name PressureFieldSolver
 extends RefCounted
 
-# Configurações de distribuição de pressão (podem ser definidas via setter ou construtor)
 var enable_pressure_model: bool = true
-var base_pressure: float = 200000.0          # Pa
-var pressure_curvature: float = 1.5
-var camber_sensitivity: float = 0.3
+var base_pressure: float = 200000.0
 var load_sensitivity: float = 0.5
-var patch_length: float = 0.15               # metros
-var patch_width: float = 0.18                 # metros
-var shape_exponent: float = 2.0
-var phys_grid_w: int = 22                     # largura do grid físico
-var phys_grid_h: int = 30                      # altura do grid físico
-var material_inertia: float = 0.15             # 0 (instantâneo) a 1.0 (lento)
+var min_contact_area: float = 1.0e-4
 
-# Pool de células do grid físico (reutilizado entre chamadas solve)
-var _phys_cells: Array[PhysCell] = []
-
-# Estrutura interna para representar uma célula do grid físico
-class PhysCell:
-	var pos: Vector3
-	var pos_x: int
-	var pos_y: int
-	var penetration: float = 0.0
-	var slip_vector: Vector2 = Vector2.ZERO
-	var confidence: float = 0.0
-	var pressure: float = 0.0
-	var normal_load: float = 0.0
-	var cell_area: float = 0.0
-	var camber_effect: float = 1.0
-	var slip_magnitude: float = 0.0
-	
-	func _init(ix: int, iy: int):
-		pos_x = ix
-		pos_y = iy
-
-# Inicializa o pool de células físicas
-func _initialize_phys_pool() -> void:
-	_phys_cells.clear()
-	for iy in range(phys_grid_h):
-		for ix in range(phys_grid_w):
-			_phys_cells.append(PhysCell.new(ix, iy))
-
-# Calcula o fator de área de uma célula com base na posição normalizada (u,v) no patch
-func _calculate_cell_area(u: float, v: float) -> float:
-	var r_u = abs(u) * 2.0
-	var r_v = abs(v) * 2.0
-	var shape_factor = 1.0 - pow(r_u, shape_exponent) - pow(r_v, shape_exponent)
-	return max(shape_factor, 0.0)
-
-# Agrega as amostras de alta resolução no grid físico e aplica suavização temporal
-func _aggregate_samples(high_res_samples: Array[TireSample], patch: ContactPatch, delta: float) -> void:
-	if _phys_cells.is_empty():
-		_initialize_phys_pool()
-	
-	var rw = float(patch.grid_w) / float(phys_grid_w)
-	var rh = float(patch.grid_h) / float(phys_grid_h)
-	
-	# 1. Acumulação por bloco
-	for cell in _phys_cells:
-		var mx = cell.pos_x
-		var my = cell.pos_y
-		var start_ix = int(mx * rw)
-		var end_ix = int((mx + 1) * rw)
-		var start_iy = int(my * rh)
-		var end_iy = int((my + 1) * rh)
-		
-		var sum_pen = 0.0
-		var sum_slip = Vector2.ZERO
-		var sum_conf = 0.0
-		var count = 0
-		
-		for iy in range(start_iy, end_iy):
-			for ix in range(start_ix, end_ix):
-				var idx = iy * patch.grid_w + ix
-				if idx < high_res_samples.size():
-					var s = high_res_samples[idx]
-					sum_pen += s.penetration
-					sum_slip += s.slip_vector
-					sum_conf += s.confidence
-					count += 1
-		
-		if count > 0:
-			var alpha = clamp(1.0 - (material_inertia * delta * 60.0), 0.05, 1.0)
-			cell.penetration = lerp(cell.penetration, sum_pen / count, alpha)
-			cell.slip_vector = cell.slip_vector.lerp(sum_slip / count, alpha)
-			cell.confidence = lerp(cell.confidence, sum_conf / count, alpha)
-			
-			# Posição mundial da célula física
-			var u = (float(mx) / float(phys_grid_w - 1) - 0.5)
-			var v = (float(my) / float(phys_grid_h - 1) - 0.5)
-			var local_pos = Vector3(u * patch.tire_width, 0.0, v * patch_length)
-			cell.pos = patch.global_transform * local_pos
-			cell.slip_magnitude = cell.slip_vector.length()
-		else:
-			# célula sem contato – zera acumuladores
-			cell.penetration = 0.0
-			cell.slip_vector = Vector2.ZERO
-			cell.confidence = 0.0
-
-# Aplica o modelo de pressão sobre o grid físico, calculando as cargas normais
-func _apply_pressure_model(phys_cells: Array[PhysCell], total_load: float) -> void:
-	# Calcula área total efetiva
-	var total_effective_area = 0.0
-	for cell in phys_cells:
-		var u = float(cell.pos_x) / float(phys_grid_w - 1) - 0.5
-		var v = float(cell.pos_y) / float(phys_grid_h - 1) - 0.5
-		cell.cell_area = _calculate_cell_area(u, v)
-		total_effective_area += cell.cell_area
-	
-	if total_effective_area <= 0:
-		# Distribuição uniforme de emergência
-		var load_per_cell = total_load / phys_cells.size()
-		for cell in phys_cells:
-			cell.pressure = base_pressure
-			cell.normal_load = load_per_cell
-		return
-	
-	# Distribui a pressão conforme área e penetração
-	for cell in phys_cells:
-		var base_frac = cell.cell_area / total_effective_area
-		var load_effect = pow(cell.penetration, load_sensitivity)
-		var pressure = base_pressure * base_frac * load_effect
-		
-		cell.pressure = pressure
-		cell.normal_load = pressure * cell.cell_area * 0.01   # N (área em m²)
-
-# Gera uma distribuição simples (modelo desabilitado) – retorna array de cargas uniformes
-func _simple_distribution(high_res_samples: Array[TireSample], total_load: float) -> PackedFloat32Array:
-	var count = high_res_samples.size()
-	var load_per_sample = total_load / count if count > 0 else 0.0
-	var result = PackedFloat32Array()
-	result.resize(count)
-	for i in range(count):
-		result[i] = load_per_sample
-	return result
-
-# Método público principal – executa o solver e retorna as cargas normais por célula física
 func solve(samples: Array[TireSample], patch: ContactPatch, delta: float) -> Dictionary:
+	var patch_data := ContactPatchData.from_samples(samples)
+	return solve_patch_data(patch_data, delta)
+
+func solve_patch_data(patch_data: ContactPatchData, _delta: float) -> Dictionary:
+	var center_ws := patch_data.get_center_of_pressure_ws()
 	if not enable_pressure_model:
-		return { "normal_loads": _simple_distribution(samples, patch.total_load) }
-	
-	# 1. Agrega amostras de alta resolução no grid físico
-	_aggregate_samples(samples, patch, delta)
-	
-	# 2. Aplica modelo de pressão para obter cargas normais
-	_apply_pressure_model(_phys_cells, patch.total_load)
-	
-	# 3. Extrai array de cargas normais (tamanho = phys_grid_w * phys_grid_h)
-	var normal_loads = PackedFloat32Array()
-	normal_loads.resize(_phys_cells.size())
-	for i in range(_phys_cells.size()):
-		normal_loads[i] = _phys_cells[i].normal_load
-	
-	return { "normal_loads": normal_loads }
+		return {
+			"normal_loads": PackedFloat32Array(),
+			"Fz_total": 0.0,
+			"center_of_pressure_ws": center_ws,
+		}
 
-# Métodos auxiliares adicionais (podem ser expostos se necessário)
-func calculate_pressure_center() -> Vector3:
-	var total_moment = Vector3.ZERO
-	var total_load = 0.0
-	for cell in _phys_cells:
-		total_moment += cell.pos * cell.normal_load
-		total_load += cell.normal_load
-	if total_load > 0:
-		return total_moment / total_load
-	return Vector3.ZERO
+	var loads := PackedFloat32Array()
+	loads.resize(patch_data.samples.size())
+	if patch_data.samples.is_empty() or patch_data.total_weight <= 0.0:
+		return {
+			"normal_loads": loads,
+			"Fz_total": 0.0,
+			"center_of_pressure_ws": center_ws,
+		}
 
-func calculate_load_transfer(lateral_accel: float) -> void:
-	if abs(lateral_accel) < 0.01:
-		return
-	for cell in _phys_cells:
-		var u = float(cell.pos_x) / float(phys_grid_w - 1) - 0.5
-		var factor = 1.0 + (lateral_accel * u * 2.0)
-		factor = max(factor, 0.1)
-		cell.normal_load *= factor
-		cell.pressure *= factor
+	var contact_area := maxf(patch_data.contact_area_est, min_contact_area)
+	var fz_total := 0.0
+	for i in range(patch_data.samples.size()):
+		var s := patch_data.samples[i]
+		var local_pressure := base_pressure * pow(maxf(s.penetration, 0.0), load_sensitivity)
+		var weight := (maxf(s.penetration, 0.0) * maxf(s.confidence, 0.0)) / patch_data.total_weight
+		var normal_load := local_pressure * contact_area * weight
+		loads[i] = normal_load
+		fz_total += normal_load
+
+	return {
+		"normal_loads": loads,
+		"Fz_total": fz_total,
+		"center_of_pressure_ws": center_ws,
+	}
