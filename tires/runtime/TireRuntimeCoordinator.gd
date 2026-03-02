@@ -28,6 +28,7 @@ var _contact_aggregation: TireContactAggregation = TireContactAggregation.new()
 var _surface_response: TireSurfaceResponseModel = TireSurfaceResponseModel.new()
 var _contact_runtime: TireContactRuntime = TireContactRuntime.new()
 var _suspension_bridge: TireSuspensionBridge = TireSuspensionBridge.new()
+var _parity_validator: TireCoreParityValidator = TireCoreParityValidator.new()
 
 var max_penetration_depth: float = 0.05
 var contact_points: Array = []
@@ -37,6 +38,9 @@ var contact_grips: Array = []
 var zone_grip_factors: Dictionary = {}
 @export var auto_step_runtime: bool = false
 @export var fixed_tick_hz: float = 120.0
+@export_enum("gdscript", "rust") var core_backend: String = "gdscript"
+@export var validate_parity: bool = false
+@export_file("*.json") var parity_vectors_path: String = "res://tires/rust/golden_vectors/contact_patch_vectors.json"
 
 var _time_accumulator: float = 0.0
 
@@ -69,9 +73,9 @@ func _generate_raycast_array() -> void:
 	for i in raycast_count:
 		var ray = RayCast3D.new()
 		ray.name = "Raycast_%d" % i
-		ray.cast_to = Vector3(0, -(max_suspension_travel + tire_diameter / 2.0), 0)
+		ray.target_position = Vector3(0, -(max_suspension_travel + tire_diameter / 2.0), 0)
 		ray.enabled = true
-		ray.translation = Vector3(start_x + i * spacing, 0, 0)
+		ray.position = Vector3(start_x + i * spacing, 0, 0)
 		ray.rotation_degrees.x = -90.0
 		ray.collision_mask = 1
 		raycast_root.add_child(ray)
@@ -97,7 +101,7 @@ func _generate_clipping_mesh() -> void:
 		vertical_zones,
 		radial_zones
 	)
-	clipping_area.translation.y = -max_suspension_travel / 2.0
+	clipping_area.position.y = -max_suspension_travel / 2.0
 
 func update_contact_data() -> void:
 	_contact_runtime.update_contact_data(
@@ -184,7 +188,17 @@ func _stage_read_samples() -> void:
 	update_contact_data()
 
 func _stage_aggregate_patch() -> ContactPatchData:
-	return calculate_unified_data()
+	match core_backend:
+		"rust":
+			# TODO: call GDExtension/Rust ABI when linked; fallback keeps runtime deterministic.
+			return calculate_unified_data()
+		_:
+			return calculate_unified_data()
+
+func _validate_gd_parity(unified_data: ContactPatchData) -> void:
+	if not validate_parity:
+		return
+	_parity_validator.validate_contact_patch(unified_data, parity_vectors_path)
 
 func _stage_apply_forces(unified_data: ContactPatchData, step_dt: float) -> void:
 	# Ordem determinística: surface response -> suspension bridge -> output forces
@@ -209,6 +223,7 @@ func step_runtime_pipeline(delta: float = 0.0, force: bool = false) -> ContactPa
 	_stage_read_samples()
 	var step_dt := 1.0 / maxf(fixed_tick_hz, 1.0)
 	var unified_data := _stage_aggregate_patch()
+	_validate_gd_parity(unified_data)
 	_stage_apply_forces(unified_data, step_dt)
 	return unified_data
 

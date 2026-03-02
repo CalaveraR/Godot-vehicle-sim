@@ -1,0 +1,21 @@
+{
+  "schema": "tire_core.contact_patch.v1",
+  "cases": [
+    {
+      "name": "baseline_two_samples",
+      "input": {
+        "samples": [
+          {"weight": 1.0, "penetration": 0.02, "slip_x": 0.10, "slip_y": 0.00},
+          {"weight": 1.0, "penetration": 0.00, "slip_x": 0.20, "slip_y": 0.10}
+        ]
+      },
+      "expected": {
+        "contact_confidence": 0.5,
+        "penetration_avg": 0.01,
+        "penetration_max": 0.02,
+        "slip_x_avg": 0.15,
+        "slip_y_avg": 0.05
+      }
+    }
+  ]
+}

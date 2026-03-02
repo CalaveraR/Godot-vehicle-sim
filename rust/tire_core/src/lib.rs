@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, Copy, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PatchSample {
     pub weight: f32,
     pub penetration: f32,
@@ -6,7 +8,7 @@ pub struct PatchSample {
     pub slip_y: f32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PatchAggregate {
     pub contact_confidence: f32,
     pub penetration_avg: f32,
@@ -31,6 +33,27 @@ impl Default for TireCoreConventions {
             min_positive_weight: 0.0,
             contact_penetration_threshold: 0.0,
         }
+    }
+}
+
+pub fn saturate(v: f32) -> f32 {
+    v.clamp(0.0, 1.0)
+}
+
+pub fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
+    if edge1 <= edge0 {
+        return 0.0;
+    }
+    let t = saturate((x - edge0) / (edge1 - edge0));
+    t * t * (3.0 - 2.0 * t)
+}
+
+pub fn robust_normalize_2(x: f32, y: f32, eps: f32) -> (f32, f32) {
+    let len = (x * x + y * y).sqrt();
+    if len <= eps {
+        (0.0, 0.0)
+    } else {
+        (x / len, y / len)
     }
 }
 
@@ -82,7 +105,7 @@ pub fn aggregate_patch_with_conventions(
         };
     }
 
-    let raw_weights: Vec<f32> = samples.iter().map(|s| s.weight).collect();
+    let raw_weights: Vec<f32> = samples.iter().map(|s| s.weight.max(0.0)).collect();
     let weights = normalize_weights_with_conventions(&raw_weights, conventions);
 
     let mut penetration_avg: f32 = 0.0;
@@ -142,6 +165,41 @@ pub fn compute_effective_radius_with_conventions(
         .min(tire_radius)
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct GoldenCase {
+    name: String,
+    input: GoldenInput,
+    expected: PatchAggregate,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct GoldenInput {
+    samples: Vec<PatchSample>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct GoldenFile {
+    schema: String,
+    cases: Vec<GoldenCase>,
+}
+
+pub fn build_default_golden_vectors() -> String {
+    let samples = vec![
+        PatchSample { weight: 1.0, penetration: 0.02, slip_x: 0.10, slip_y: 0.00 },
+        PatchSample { weight: 1.0, penetration: 0.00, slip_x: 0.20, slip_y: 0.10 },
+    ];
+    let expected = aggregate_patch(&samples);
+    let payload = GoldenFile {
+        schema: "tire_core.contact_patch.v1".to_string(),
+        cases: vec![GoldenCase {
+            name: "baseline_two_samples".to_string(),
+            input: GoldenInput { samples },
+            expected,
+        }],
+    };
+    serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,18 +214,8 @@ mod tests {
     #[test]
     fn aggregate_returns_expected_confidence() {
         let patch = aggregate_patch(&[
-            PatchSample {
-                weight: 1.0,
-                penetration: 0.02,
-                slip_x: 0.1,
-                slip_y: 0.0,
-            },
-            PatchSample {
-                weight: 1.0,
-                penetration: 0.00,
-                slip_x: 0.2,
-                slip_y: 0.1,
-            },
+            PatchSample { weight: 1.0, penetration: 0.02, slip_x: 0.1, slip_y: 0.0 },
+            PatchSample { weight: 1.0, penetration: 0.00, slip_x: 0.2, slip_y: 0.1 },
         ]);
         assert!((patch.contact_confidence - 0.5).abs() < 1.0e-6);
         assert!(patch.penetration_max >= patch.penetration_avg);
@@ -183,17 +231,44 @@ mod tests {
     #[test]
     fn conventions_can_change_contact_threshold() {
         let patch = aggregate_patch_with_conventions(
-            &[PatchSample {
-                weight: 1.0,
-                penetration: 0.02,
-                slip_x: 0.0,
-                slip_y: 0.0,
-            }],
+            &[PatchSample { weight: 1.0, penetration: 0.02, slip_x: 0.0, slip_y: 0.0 }],
             TireCoreConventions {
                 contact_penetration_threshold: 0.03,
                 ..TireCoreConventions::default()
             },
         );
         assert_eq!(patch.contact_confidence, 0.0);
+    }
+
+    #[test]
+    fn deterministic_output_for_same_input() {
+        let samples = [PatchSample { weight: 1.0, penetration: 0.01, slip_x: 0.2, slip_y: -0.1 }];
+        let a = aggregate_patch(&samples);
+        let b = aggregate_patch(&samples);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn no_nan_or_inf_on_extreme_values() {
+        let out = aggregate_patch(&[
+            PatchSample { weight: -1000.0, penetration: f32::MAX, slip_x: 1.0e20, slip_y: -1.0e20 },
+            PatchSample { weight: 0.0, penetration: 0.0, slip_x: 0.0, slip_y: 0.0 },
+        ]);
+        assert!(out.contact_confidence.is_finite());
+        assert!(out.penetration_avg.is_finite());
+        assert!(out.slip_x_avg.is_finite());
+        assert!(out.slip_y_avg.is_finite());
+    }
+
+    #[test]
+    fn robust_normalize_handles_zero_vector() {
+        assert_eq!(robust_normalize_2(0.0, 0.0, 1.0e-6), (0.0, 0.0));
+    }
+
+    #[test]
+    fn can_generate_golden_vectors_json() {
+        let json = build_default_golden_vectors();
+        assert!(json.contains("tire_core.contact_patch.v1"));
+        assert!(json.contains("baseline_two_samples"));
     }
 }
