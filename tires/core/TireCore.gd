@@ -4,6 +4,7 @@ extends RefCounted
 var confidence_min_for_contact: float = 0.1
 var emergency_fz_falloff_rate: float = 10.0
 var energy_delta_limit: float = 8000.0
+var conventions: Dictionary = TireCoreReference.DEFAULT_CONVENTIONS.duplicate(true)
 
 func step_wheel(
 	shader_samples: Array[TireSample],
@@ -14,8 +15,9 @@ func step_wheel(
 ) -> TireForces:
 	var merged := _merge_samples(shader_samples, raycast_samples)
 	var patch := ContactPatchData.from_samples(merged)
+	var normalized := _normalize_and_aggregate(merged)
 	var out := TireForces.new()
-	out.contact_confidence = patch.patch_confidence
+	out.contact_confidence = float(normalized.get("contact_confidence", patch.patch_confidence))
 	out.center_of_pressure_ws = patch.center_of_pressure_ws
 
 	if patch.patch_confidence < confidence_min_for_contact and raycast_samples.is_empty():
@@ -30,7 +32,8 @@ func step_wheel(
 	var base_k := 120000.0
 	var base_c := 3000.0
 	var pen_rate := _estimate_penetration_rate(merged)
-	out.Fz = maxf(0.0, base_k * patch.penetration_avg + base_c * pen_rate)
+	var pen_avg := float(normalized.get("penetration_avg", patch.penetration_avg))
+	out.Fz = maxf(0.0, base_k * pen_avg + base_c * pen_rate)
 
 	var slip := patch.average_slip
 	var mu := 1.0
@@ -89,3 +92,17 @@ func _apply_energy_clamp(forces: TireForces, velocity_ws: Vector3, dt: float) ->
 	forces.Mz *= scale
 	forces.debug["energy_clamped"] = true
 	forces.debug["energy_scale"] = scale
+
+
+func _normalize_and_aggregate(samples: Array[TireSample]) -> Dictionary:
+	var mapped: Array = []
+	mapped.resize(samples.size())
+	for i in range(samples.size()):
+		var sample := samples[i]
+		mapped[i] = {
+			"weight": maxf(sample.penetration, 0.0) * clampf(sample.confidence, 0.0, 1.0),
+			"penetration": sample.penetration,
+			"slip_x": sample.slip_vector.x,
+			"slip_y": sample.slip_vector.y,
+		}
+	return TireCoreReference.aggregate_patch(mapped, conventions)

@@ -39,7 +39,7 @@ func _physics_process(delta):
     var unified_data: Dictionary = {}
     if tire_runtime:
         if tire_runtime.has_method("step_runtime_pipeline"):
-            unified_data = tire_runtime.step_runtime_pipeline()
+            unified_data = tire_runtime.step_runtime_pipeline(delta, true)
         else:
             tire_runtime.update_contact_data()
             unified_data = tire_runtime.calculate_unified_data()
