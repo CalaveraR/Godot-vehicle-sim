@@ -1,3 +1,5 @@
+## LEGACY: mantido para referência histórica.
+## Não deve ser instanciado no runtime atual; use TireRuntimeCoordinator como autoridade única.
 # Sistema central de decisão física (ORQUESTRADOR PRINCIPAL)
 class_name TireContactSolver extends Node
 

@@ -17,7 +17,7 @@ func apply_to_suspension(
 
 	if patch.contact_points and patch.contact_points.size() > 0:
 		suspension_system.raycast.global_transform.origin = patch.average_position
-		suspension_system.raycast.cast_to = patch.average_normal * -1.0
+		suspension_system.raycast.target_position = patch.average_normal * -1.0
 
 	suspension_system.total_load = patch.total_force.y
 

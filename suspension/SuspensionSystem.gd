@@ -11,29 +11,29 @@ enum SUSPENSION_TYPE {
     AIR
 }
 
-export(SUSPENSION_TYPE) var suspension_type = SUSPENSION_TYPE.MACPHERSON
-export var base_vertical_stiffness = 150000.0
-export var min_effective_radius = 0.1
-export var tire_radius = 0.3
-export var tire_width = 0.2
-export var motion_ratio = 0.7
-export var unsprung_mass = 25.0
-export var bushing_stiffness = 10000.0
-export(Curve) var load_transfer_curve
-export(Curve) var deformation_x_curve
-export(Curve) var deformation_y_curve
-export(Curve) var deformation_z_curve
-export(Curve) var camber_variation_curve
-export(Curve) var caster_variation_curve
-export(Curve) var toe_variation_curve
-export(Curve) var vertical_stiffness_curve
-export(Curve) var dynamic_radius_curve
-export(Curve) var relaxation_length_curve
-export(Curve) var lateral_deformation_curve
-export(Curve) var flat_spot_radius_curve
-export(Curve) var response_to_lateral_flex_curve
-export(Curve) var response_to_longitudinal_flex_curve
-export(Curve) var vibration_absorption_curve
+@export var suspension_type: SUSPENSION_TYPE = SUSPENSION_TYPE.MACPHERSON
+@export var base_vertical_stiffness = 150000.0
+@export var min_effective_radius = 0.1
+@export var tire_radius = 0.3
+@export var tire_width = 0.2
+@export var motion_ratio = 0.7
+@export var unsprung_mass = 25.0
+@export var bushing_stiffness = 10000.0
+@export var load_transfer_curve: Curve
+@export var deformation_x_curve: Curve
+@export var deformation_y_curve: Curve
+@export var deformation_z_curve: Curve
+@export var camber_variation_curve: Curve
+@export var caster_variation_curve: Curve
+@export var toe_variation_curve: Curve
+@export var vertical_stiffness_curve: Curve
+@export var dynamic_radius_curve: Curve
+@export var relaxation_length_curve: Curve
+@export var lateral_deformation_curve: Curve
+@export var flat_spot_radius_curve: Curve
+@export var response_to_lateral_flex_curve: Curve
+@export var response_to_longitudinal_flex_curve: Curve
+@export var vibration_absorption_curve: Curve
 
 var effective_radius = 0.3
 var total_load = 0.0
@@ -45,10 +45,10 @@ var dynamic_caster = 0.0
 var dynamic_toe = 0.0
 var tire_induced_deformation = Vector3.ZERO
 var absorbed_vibration = 0.0
-var raycast: RayCast
+var raycast: RayCast3D
 
 func _ready():
-    raycast = RayCast.new()
+    raycast = RayCast3D.new()
     raycast.enabled = true
     add_child(raycast)
     reset_raycast()
@@ -64,7 +64,7 @@ func configure_curves():
     # Configurar outras curvas com valores padrão se necessário
 
 func reset_raycast():
-    raycast.cast_to = Vector3(0, -tire_radius * 1.5, 0)
+    raycast.target_position = Vector3(0, -tire_radius * 1.5, 0)
     raycast.position = Vector3.ZERO
 
 func get_wheel_loads() -> Array:
@@ -105,7 +105,6 @@ func update_suspension_geometry(total_load: float):
     
     apply_elastic_deformation()
     update_raycast_direction()
-    update_effective_radius()
     update_relaxation_length()
     update_lateral_deformation()
 
@@ -122,10 +121,10 @@ func update_raycast_direction():
     direction_basis = direction_basis.rotated(Vector3.RIGHT, dynamic_caster)
     direction_basis = direction_basis.rotated(Vector3.UP, dynamic_toe)
     direction_basis = direction_basis.rotated(Vector3.FORWARD, dynamic_camber)
-    raycast.cast_to = direction_basis * Vector3.DOWN * tire_radius * 1.5
+    raycast.target_position = direction_basis * Vector3.DOWN * tire_radius * 1.5
     raycast.position = deformation
 
-func update_effective_radius():
+func update_effective_radius(flat_spot_depth: float, max_pressure: float) -> void:
     var deflection = total_load / base_vertical_stiffness
     var max_deflection = tire_radius * 0.3
     var deflection_ratio = clamp(deflection / max_deflection, 0.0, 1.0)
@@ -134,7 +133,9 @@ func update_effective_radius():
     if vertical_stiffness_curve:
         deflection = total_load / (base_vertical_stiffness * vertical_stiffness_curve.interpolate(deflection_ratio))
     
-    var base_radius = tire_radius - deflection
+    var flat_spot_penalty = maxf(flat_spot_depth, 0.0)
+    var pressure_recovery = clamp(max_pressure / 100000.0, 0.0, 0.02)
+    var base_radius = tire_radius - deflection - flat_spot_penalty + pressure_recovery
     
     # Aplicar curva de raio dinâmico
     if dynamic_radius_curve:

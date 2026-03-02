@@ -1,8 +1,10 @@
 class_name MultiLinkSuspension
 extends SuspensionSystem
+# Modelo simplificado de suspensao multilink.
+# Conecta com SuspensionSystem para calculo de compliance lateral e longitudinal.
 
-export var link_count = 5
-export var link_stiffness = 10000.0
+@export var link_count = 5
+@export var link_stiffness = 10000.0
 var link_forces = []
 
 func _ready():

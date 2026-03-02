@@ -1,11 +1,13 @@
 class_name McPhersonSuspension
 extends SuspensionSystem
+# Modelo simplificado de suspensao McPherson.
+# Alimenta SuspensionSystem com parametros de geometria e resposta vertical.
 
-export var upper_mount_offset = 0.2
-export var spring_resting_length = 0.4
-export var anti_roll_stiffness = 15000.0
-export(Curve) var bump_steer_curve
-export(Curve) var camber_compression_curve
+@export var upper_mount_offset = 0.2
+@export var spring_resting_length = 0.4
+@export var anti_roll_stiffness = 15000.0
+@export var bump_steer_curve: Curve
+@export var camber_compression_curve: Curve
 
 func _ready():
     suspension_type = SUSPENSION_TYPE.MACPHERSON

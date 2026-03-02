@@ -1,11 +1,13 @@
 class_name ThermalModel
 extends Node
+# Calcula troca termica do pneu e da roda.
+# E chamado por TireSystem para atualizar temperatura de superficie e nucleo.
 
-export var specific_heat = 1500.0
-export var thermal_mass = 10.0
-export var conductivity_to_wheel = 50.0
-export var convection_coefficient = 25.0
-export(Curve) var temp_conductivity_curve
+@export var specific_heat = 1500.0
+@export var thermal_mass = 10.0
+@export var conductivity_to_wheel = 50.0
+@export var convection_coefficient = 25.0
+@export var temp_conductivity_curve: Curve
 
 var surface_temperature = 20.0
 var core_temperature = 20.0

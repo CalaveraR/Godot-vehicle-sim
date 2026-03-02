@@ -1,9 +1,11 @@
 class_name DoubleWishboneSuspension
 extends SuspensionSystem
+# Modelo simplificado de suspensao double wishbone.
+# Fornece geometria para SuspensionSystem calcular carga e camber dinamico.
 
-export var upper_wishbone_length = 0.3
-export var lower_wishbone_length = 0.4
-export var wishbone_angle = 0.1
+@export var upper_wishbone_length = 0.3
+@export var lower_wishbone_length = 0.4
+@export var wishbone_angle = 0.1
 
 func _ready():
     suspension_type = SUSPENSION_TYPE.DOUBLE_WISHBONE

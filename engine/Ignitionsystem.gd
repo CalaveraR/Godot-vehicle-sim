@@ -1,21 +1,21 @@
 class_name IgnitionSystem
 extends Node
 
-# ======================
+#
 # VERSÃO 3.0 - SISTEMA DE IGNIÇÃO COMPLETO
-# ======================
+#
 # Características principais:
-# - ✅ 100% compatível com Engine 3.1, CombustionSystem 3.0, CylinderHead 3.0
-# - ✅ Sistema de ignição realista com avanço eletrônico
-# - ✅ Curvas de avanço, energia e eficiência
-# - ✅ Sistema de falhas e diagnóstico completo
-# - ✅ Suporte a diferentes tipos de ignição (distribuidor, coil-on-plug)
-# - ✅ Integração com detonação e anti-detonacao
-# ======================
+# - 100% compatível com Engine 3.1, CombustionSystem 3.0, CylinderHead 3.0
+# - Sistema de ignição realista com avanço eletrônico
+# - Curvas de avanço, energia e eficiência
+# - Sistema de falhas e diagnóstico completo
+# - Suporte a diferentes tipos de ignição (distribuidor, coil-on-plug)
+# - Integração com detonação e anti-detonacao
+#
 
-# ======================
+#
 # ENUMS E CONFIGURAÇÕES
-# ======================
+#
 enum IgnitionType {
     SPARK,           # Ignição por centelha (gasolina/etanol)
     COMPRESSION,     # Ignição por compressão (diesel)
@@ -39,25 +39,25 @@ enum IgnitionSystemType {
     DIRECT_FIRE
 }
 
-# ======================
+#
 # PARÂMETROS CONFIGURÁVEIS
-# ======================
-export(IgnitionType) var ignition_type = IgnitionType.SPARK
-export(IgnitionSystemType) var ignition_system_type = IgnitionSystemType.COIL_PER_CYLINDER
-export var base_timing: float = 10.0           # Graus antes do PMS
-export var max_advance: float = 35.0           # Máximo absoluto
-export var min_advance: float = -5.0           # Mínimo (atraso)
-export var rev_limit_cut: float = 0.8          # Corte de ignição no limitador
-export var spark_energy_base: float = 1.0      # Energia base da centelha
+#
+@export var ignition_type: IgnitionType = IgnitionType.SPARK
+@export var ignition_system_type: IgnitionSystemType = IgnitionSystemType.COIL_PER_CYLINDER
+@export var base_timing: float = 10.0           # Graus antes do PMS
+@export var max_advance: float = 35.0           # Máximo absoluto
+@export var min_advance: float = -5.0           # Mínimo (atraso)
+@export var rev_limit_cut: float = 0.8          # Corte de ignição no limitador
+@export var spark_energy_base: float = 1.0      # Energia base da centelha
 
 # Configurações específicas do distribuidor
-export var distributor_max_rpm: float = 7000.0
-export var distributor_spark_strength: float = 0.85
-export var distributor_max_advance: float = 25.0
+@export var distributor_max_rpm: float = 7000.0
+@export var distributor_spark_strength: float = 0.85
+@export var distributor_max_advance: float = 25.0
 
-# ======================
+#
 # ESTADO DINÂMICO
-# ======================
+#
 var current_timing: float = 0.0
 var dwell_time: float = 2.5                    # ms
 var spark_energy: float = 1.0
@@ -70,53 +70,53 @@ var misfire_chance: float = 0.0
 var spark_efficiency: float = 1.0
 var timing_retard: float = 0.0                 # Retardo por detonação
 
-# ======================
+#
 # SISTEMA DE AVANÇO
-# ======================
+#
 var advance_curve: Curve
 var dwell_curve: Curve
 var energy_curve: Curve
 var temperature_advance_curve: Curve
 var knock_retard_curve: Curve
 
-# ======================
+#
 # ESTATÍSTICAS E DIAGNÓSTICO
-# ======================
+#
 var spark_count: int = 0
 var misfire_count: int = 0
 var total_spark_energy: float = 0.0
 var spark_history: Array = []
 var cylinder_timing: Array = []                # Timing individual por cilindro
 
-# ======================
+#
 # REFERÊNCIAS
-# ======================
+#
 var engine: Engine
 var combustion_system: Node
 var fuel_system: Node
 var cylinder_head: CylinderHead
 var diagnostic_system: Node
 
-# ======================
+#
 # SINAIS
-# ======================
+#
 signal spark_energy_changed(energy: float)
 signal ignition_timing_changed(timing: float)
 signal misfire_detected(cylinder: int, reason: String)
 signal coil_charge_changed(charge: float)
 signal system_failure(failure_type: int, severity: float)
 
-# ======================
+#
 # CONSTANTES
-# ======================
+#
 const MIN_SPARK_ENERGY: float = 0.3
 const MAX_SPARK_ENERGY: float = 1.5
 const DWELL_TIME_BASE: float = 2.5
 const SPARK_DURATION: float = 1.5
 
-# ======================
+#
 # INICIALIZAÇÃO
-# ======================
+#
 func _ready():
     initialize_ignition_system()
     create_default_curves()
@@ -190,9 +190,9 @@ func create_default_curves():
     knock_retard_curve.add_point(Vector2(0.5, 2.0))     # Detonação leve
     knock_retard_curve.add_point(Vector2(1.0, 8.0))     # Detonação severa
 
-# ======================
+#
 # ATUALIZAÇÃO PRINCIPAL
-# ======================
+#
 func update(delta: float):
     """Atualiza o sistema de ignição - chamado pelo Engine"""
     if not engine or ignition_type == IgnitionType.COMPRESSION:
@@ -300,9 +300,9 @@ func update_spark_energy(coolant_temp: float):
     spark_energy = clamp(base_energy, MIN_SPARK_ENERGY, MAX_SPARK_ENERGY)
     spark_energy_changed.emit(spark_energy)
 
-# ======================
+#
 # SISTEMA DE CENTELHA
-# ======================
+#
 func should_fire_spark(rpm: float) -> bool:
     """Verifica se é momento de disparar centelha"""
     if ignition_type != IgnitionType.SPARK and ignition_type != IgnitionType.WANKEL_IGNITION:
@@ -344,11 +344,11 @@ func fire_spark():
     spark_count += 1
     total_spark_energy += actual_spark_energy
     
-    # ✅ COMPATÍVEL: Notificar combustion system
+    # COMPATÍVEL: Notificar combustion system
     if combustion_system and combustion_system.has_method("on_spark_event"):
         combustion_system.on_spark_event(current_cylinder, actual_spark_energy)
     
-    # ✅ COMPATÍVEL: Notificar cylinder head
+    # COMPATÍVEL: Notificar cylinder head
     if cylinder_head and cylinder_head.has_method("on_ignition_event"):
         cylinder_head.on_ignition_event(current_cylinder, actual_spark_energy)
     
@@ -358,7 +358,7 @@ func fire_spark():
     
     # Resetar sistema
     coil_charge = 0.0
-    last_spark_time = OS.get_ticks_msec()
+    last_spark_time = Time.get_ticks_msec()
     misfire_chance = 0.0
     
     # Emitir sinais
@@ -423,11 +423,11 @@ func trigger_misfire():
     
     # Resetar mesmo em misfire
     coil_charge = 0.0
-    last_spark_time = OS.get_ticks_msec()
+    last_spark_time = Time.get_ticks_msec()
 
-# ======================
+#
 # SISTEMA DE DETONAÇÃO E ANTI-DETONAÇÃO
-# ======================
+#
 func retard_timing(cylinder: int, severity: float):
     """Retarda o timing para combater detonação - COMPATÍVEL COM COMBUSTIONSYSTEM"""
     if cylinder < 0 or cylinder >= cylinder_timing.size():
@@ -461,9 +461,9 @@ func restore_timing():
     if timing_retard > 0.0:
         schedule_timing_restoration()
 
-# ======================
+#
 # SISTEMA DE FALHAS
-# ======================
+#
 func handle_failures(delta: float):
     """Gerencia falhas e degradação do sistema"""
     if failure_mode != FailureType.NONE:
@@ -511,9 +511,9 @@ func trigger_catastrophic_failure():
     if failure_severity >= 0.95:
         engine.stall()
 
-# ======================
+#
 # API PÚBLICA
-# ======================
+#
 func get_ignition_status() -> Dictionary:
     return {
         "system_type": ignition_system_type,
@@ -570,9 +570,9 @@ func connect_to_engine(engine_node: Engine):
     engine = engine_node
     initialize_cylinder_arrays()
 
-# ======================
+#
 # UTILITÁRIOS
-# ======================
+#
 func play_spark_sound(energy: float):
     """Toca som de centelha (placeholder)"""
     # Implementar lógica de áudio

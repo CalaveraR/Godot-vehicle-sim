@@ -10,7 +10,7 @@ enum Gear { REVERSE = -1, NEUTRAL = 0, DRIVE = 1 }
 @onready var flat_spot = $FlatSpotSystem
 @onready var suspension_response = $SuspensionResponseSystem
 @onready var wheel_assembly = $WheelAssemblySystem
-@onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator") if has_node("TireRuntimeCoordinator") else get_node_or_null("HybridTireSystem")
+@onready var tire_runtime = get_node_or_null("TireRuntimeCoordinator")
 
 var current_engine_torque = 0.0
 var gear = Gear.DRIVE
@@ -28,11 +28,6 @@ func _ready():
     car_body = get_parent()
     wheel_assembly.apply_to_systems()
 
-    # Guard rail: nunca deixe coordinator e legacy rodando em paralelo.
-    if has_node("TireRuntimeCoordinator") and has_node("HybridTireSystem"):
-        var legacy = get_node_or_null("HybridTireSystem")
-        if legacy:
-            legacy.set_physics_process(false)
 
 func _physics_process(delta):
     var lateral_g = 0.0
@@ -45,7 +40,7 @@ func _physics_process(delta):
     var unified_data: ContactPatchData = ContactPatchData.new()
     if tire_runtime:
         if tire_runtime.has_method("step_runtime_pipeline"):
-            unified_data = tire_runtime.step_runtime_pipeline(delta, true)
+            unified_data = tire_runtime.step_runtime_pipeline(delta)
         else:
             tire_runtime.update_contact_data()
             unified_data = tire_runtime.calculate_unified_data()
@@ -54,7 +49,6 @@ func _physics_process(delta):
             tire_runtime.apply_to_tire_system(unified_data, delta)
     
     var flat_spot_depth = flat_spot.get_flat_spot_depth()
-    suspension.update_effective_radius(flat_spot_depth, unified_data.max_pressure)
     
     brake.update(delta)
     
