@@ -79,3 +79,12 @@ Objetivo:
 
 Todos os fallbacks numéricos devem ser centralizados em `conventions` para que
 ajustes em runtime sejam fáceis e reproduzíveis entre as duas linguagens.
+
+
+## 8) Acceptance Criteria (review/merge gate)
+
+- TireSample único: shader e raycast retornam `Array[TireSample]` do mesmo `class_name`.
+- ContactPatchData único como agregado do patch atual.
+- TireRuntimeCoordinator único entrypoint operacional (`step_runtime_pipeline`).
+- Projeto abre sem erro de script e roda ao menos 1 veículo no runtime novo.
+- `cargo test` em `rust/tire_core` passa.

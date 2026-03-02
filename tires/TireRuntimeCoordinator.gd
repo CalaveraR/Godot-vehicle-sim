@@ -32,6 +32,7 @@ var contact_normals: Array = []
 var contact_forces: Array = []
 var contact_grips: Array = []
 var zone_grip_factors: Dictionary = {}
+@export var auto_step_runtime: bool = false
 
 func _ready() -> void:
 	tire_system = get_parent().get_node_or_null("TireSystem")
@@ -174,10 +175,16 @@ func apply_clipping_forces(body: RigidBody3D) -> void:
 func get_clipping_ratio(body: Node3D) -> float:
 	return _surface_response.get_clipping_ratio(body, clipping_area, max_penetration_depth)
 
-func _physics_process(_delta: float) -> void:
+func step_runtime_pipeline() -> Dictionary:
+	# Ordem canônica: contato -> agregado -> suspensão -> wheel/body -> tire model -> clipping
 	update_contact_data()
-	var unified_data = calculate_unified_data()
+	var unified_data := calculate_unified_data()
 	apply_to_suspension(unified_data)
 	apply_to_wheel(unified_data)
 	apply_to_tire_system(unified_data)
 	_contact_runtime.apply_clipping_overlaps(clipping_area, Callable(self, "apply_clipping_forces"))
+	return unified_data
+
+func _physics_process(_delta: float) -> void:
+	if auto_step_runtime:
+		step_runtime_pipeline()

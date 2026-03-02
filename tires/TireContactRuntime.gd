@@ -37,16 +37,24 @@ func apply_to_wheel(wheel, data: Dictionary) -> void:
 	if not wheel:
 		return
 
+	# Agregado chega em WORLD. Wheel.apply_forces_to_vehicle espera lateral/longitudinal em LOCAL da roda.
+	var total_force_ws: Vector3 = data.get("total_force", Vector3.ZERO)
+	var total_torque_ws: Vector3 = data.get("total_torque", Vector3.ZERO)
+	var inv_basis := wheel.global_transform.basis.inverse()
+	var total_force_local := inv_basis * total_force_ws
+	var total_torque_local := inv_basis * total_torque_ws
+
 	wheel.contact_area = data["contact_area"]
 	wheel.set_ground_grip(data["weighted_grip"])
 	wheel.apply_forces_to_vehicle(
 		data["contact_data"],
 		{
-			"lateral": data["total_force"].x,
-			"longitudinal": data["total_force"].z,
-			"aligning_torque": data["total_torque"].y,
-			"overturning_moment": data["total_torque"].x,
-			"gyroscopic_torque": Vector3(0, 0, data["total_torque"].z)
+			"lateral": total_force_local.x,
+			"longitudinal": total_force_local.z,
+			"aligning_torque": total_torque_local.y,
+			"overturning_moment": total_torque_local.x,
+			"gyroscopic_torque": Vector3(0, 0, total_torque_local.z),
+			"space": "local_wheel"
 		}
 	)
 

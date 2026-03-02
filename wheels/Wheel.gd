@@ -38,12 +38,14 @@ func _physics_process(delta):
     
     var unified_data: Dictionary = {}
     if tire_runtime:
-        tire_runtime.update_contact_data()
-        unified_data = tire_runtime.calculate_unified_data()
-
-        tire_runtime.apply_to_suspension(unified_data)
-        tire_runtime.apply_to_wheel(unified_data)
-        tire_runtime.apply_to_tire_system(unified_data)
+        if tire_runtime.has_method("step_runtime_pipeline"):
+            unified_data = tire_runtime.step_runtime_pipeline()
+        else:
+            tire_runtime.update_contact_data()
+            unified_data = tire_runtime.calculate_unified_data()
+            tire_runtime.apply_to_suspension(unified_data)
+            tire_runtime.apply_to_wheel(unified_data)
+            tire_runtime.apply_to_tire_system(unified_data)
     
     var flat_spot_depth = flat_spot.get_flat_spot_depth()
     suspension.update_effective_radius(flat_spot_depth, unified_data.get("max_pressure", 0.0))

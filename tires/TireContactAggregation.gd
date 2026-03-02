@@ -12,6 +12,8 @@ func build_unified_contact_data(
 	var data = {
 		"total_force": Vector3.ZERO,
 		"total_torque": Vector3.ZERO,
+		"units": {"force": "N", "torque": "N.m"},
+		"space": {"total_force": "world", "total_torque": "world"},
 		"average_position": Vector3.ZERO,
 		"average_normal": Vector3.UP,
 		"contact_area": 0.0,
