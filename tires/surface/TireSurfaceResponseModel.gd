@@ -25,13 +25,13 @@ func calculate_local_grip(
 
 	return base_grip * temp_factor * wear_factor * aqua_factor
 
-func update_wear_and_temperature(tire_system, wheel_dynamics, data: Dictionary, delta: float) -> void:
+func update_wear_and_temperature(tire_system, wheel_dynamics, patch: ContactPatchData, delta: float) -> void:
 	var slip = wheel_dynamics.wheel_slip_ratio
 	var slip_angle = wheel_dynamics.wheel_slip_angle
 
 	var wear_rate = tire_system.base_wear_rate
 	wear_rate *= 1.0 + (slip * 5.0) + (abs(slip_angle) * 3.0)
-	wear_rate *= data["max_pressure"] / 10000.0
+	wear_rate *= patch.max_pressure / 10000.0
 
 	if tire_system.temperature_wear_curve:
 		wear_rate *= tire_system.temperature_wear_curve.interpolate_baked(tire_system.surface_temperature)
@@ -40,7 +40,7 @@ func update_wear_and_temperature(tire_system, wheel_dynamics, data: Dictionary, 
 
 	var heat_generation = tire_system.base_heat_generation
 	heat_generation *= 1.0 + (slip * 3.0) + (abs(slip_angle) * 2.0)
-	heat_generation *= data["total_force"].length() / 10000.0
+	heat_generation *= patch.total_force.length() / 10000.0
 
 	var surface_heat = heat_generation * 0.7
 	var core_heat = heat_generation * 0.3

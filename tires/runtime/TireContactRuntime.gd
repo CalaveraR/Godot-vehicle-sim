@@ -33,21 +33,22 @@ func update_contact_data(
 			contact_forces.append(force)
 			contact_grips.append(grip_factor)
 
-func apply_to_wheel(wheel, data: Dictionary) -> void:
+func apply_to_wheel(wheel, patch: ContactPatchData) -> TireForces:
+	var out := TireForces.new()
 	if not wheel:
-		return
+		return out
 
 	# Agregado chega em WORLD. Wheel.apply_forces_to_vehicle espera lateral/longitudinal em LOCAL da roda.
-	var total_force_ws: Vector3 = data.get("total_force", Vector3.ZERO)
-	var total_torque_ws: Vector3 = data.get("total_torque", Vector3.ZERO)
+	var total_force_ws: Vector3 = patch.total_force
+	var total_torque_ws: Vector3 = patch.total_torque
 	var inv_basis := wheel.global_transform.basis.inverse()
 	var total_force_local := inv_basis * total_force_ws
 	var total_torque_local := inv_basis * total_torque_ws
 
-	wheel.contact_area = data["contact_area"]
-	wheel.set_ground_grip(data["weighted_grip"])
+	wheel.contact_area = patch.contact_area
+	wheel.set_ground_grip(patch.weighted_grip)
 	wheel.apply_forces_to_vehicle(
-		data["contact_data"],
+		patch.contact_data,
 		{
 			"lateral": total_force_local.x,
 			"longitudinal": total_force_local.z,
@@ -58,19 +59,27 @@ func apply_to_wheel(wheel, data: Dictionary) -> void:
 		}
 	)
 
-func apply_to_tire_system(tire_system, data: Dictionary, update_wear_cb: Callable) -> void:
+	out.Fx = total_force_local.x
+	out.Fy = total_force_local.z
+	out.Fz = total_force_local.y
+	out.Mz = total_torque_local.y
+	out.center_of_pressure_ws = patch.average_position
+	out.contact_confidence = patch.patch_confidence
+	return out
+
+func apply_to_tire_system(tire_system, patch: ContactPatchData, update_wear_cb: Callable) -> void:
 	if not tire_system:
 		return
 
-	tire_system.total_load = data["total_force"].y
-	tire_system.total_lateral_force = data["total_force"].x
-	tire_system.total_longitudinal_force = data["total_force"].z
-	tire_system.overturning_moment = data["total_torque"].x
-	tire_system.aligning_torque = data["total_torque"].y
-	tire_system.gyroscopic_torque = Vector3(0, 0, data["total_torque"].z)
-	tire_system.contact_area = data["contact_area"]
+	tire_system.total_load = patch.total_force.y
+	tire_system.total_lateral_force = patch.total_force.x
+	tire_system.total_longitudinal_force = patch.total_force.z
+	tire_system.overturning_moment = patch.total_torque.x
+	tire_system.aligning_torque = patch.total_torque.y
+	tire_system.gyroscopic_torque = Vector3(0, 0, patch.total_torque.z)
+	tire_system.contact_area = patch.contact_area
 
-	update_wear_cb.call(data)
+	update_wear_cb.call(patch)
 
 func apply_clipping_overlaps(
 	clipping_area: Area3D,

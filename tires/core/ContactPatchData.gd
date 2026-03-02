@@ -1,19 +1,31 @@
 class_name ContactPatchData
 extends RefCounted
 
+# --- Sensor-level aggregation ---
 var samples: Array[TireSample] = []
 var patch_confidence: float = 0.0
-
 var center_of_pressure_local: Vector3 = Vector3.ZERO
 var avg_normal_local: Vector3 = Vector3.UP
-
 var penetration_avg: float = 0.0
 var penetration_max: float = 0.0
 var contact_area_est: float = 0.0
-
 var average_slip: Vector2 = Vector2.ZERO
 var normalized_weights: Array = []
 var total_weight: float = 0.0
+
+# --- Runtime unified contract (typed replacement for Dictionary keys) ---
+var total_force: Vector3 = Vector3.ZERO
+var total_torque: Vector3 = Vector3.ZERO
+var average_position: Vector3 = Vector3.ZERO
+var average_normal: Vector3 = Vector3.UP
+var contact_area: float = 0.0
+var max_pressure: float = 0.0
+var average_grip: float = 1.0
+var weighted_grip: float = 1.0
+var contact_points: Array = []
+var contact_data: Dictionary = {}
+var units: Dictionary = {"force": "N", "torque": "N.m"}
+var space: Dictionary = {"total_force": "world", "total_torque": "world"}
 
 static func from_samples(samples_in: Array[TireSample]) -> ContactPatchData:
 	var out := ContactPatchData.new()
@@ -60,3 +72,11 @@ static func from_samples(samples_in: Array[TireSample]) -> ContactPatchData:
 	out.patch_confidence = clampf(conf_sum / float(valid_count), 0.0, 1.0)
 	out.contact_area_est = out.total_weight
 	return out
+
+func get_center_of_pressure_ws() -> Vector3:
+	if samples.is_empty() or normalized_weights.is_empty():
+		return Vector3.ZERO
+	var acc := Vector3.ZERO
+	for i in range(min(samples.size(), normalized_weights.size())):
+		acc += samples[i].contact_pos_ws * float(normalized_weights[i])
+	return acc

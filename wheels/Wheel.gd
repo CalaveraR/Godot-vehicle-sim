@@ -36,7 +36,7 @@ func _physics_process(delta):
     suspension_response.calculate_dynamic_response(car_body, suspension.total_load, lateral_g)
     suspension_response.apply_response(suspension)
     
-    var unified_data: Dictionary = {}
+    var unified_data: ContactPatchData = ContactPatchData.new()
     if tire_runtime:
         if tire_runtime.has_method("step_runtime_pipeline"):
             unified_data = tire_runtime.step_runtime_pipeline(delta, true)
@@ -45,10 +45,10 @@ func _physics_process(delta):
             unified_data = tire_runtime.calculate_unified_data()
             tire_runtime.apply_to_suspension(unified_data)
             tire_runtime.apply_to_wheel(unified_data)
-            tire_runtime.apply_to_tire_system(unified_data)
+            tire_runtime.apply_to_tire_system(unified_data, delta)
     
     var flat_spot_depth = flat_spot.get_flat_spot_depth()
-    suspension.update_effective_radius(flat_spot_depth, unified_data.get("max_pressure", 0.0))
+    suspension.update_effective_radius(flat_spot_depth, unified_data.max_pressure)
     
     brake.update(delta)
     
@@ -72,7 +72,7 @@ func _physics_process(delta):
         suspension.total_load,
         suspension.get_relaxation_factor(),
         car_body,
-        unified_data.get("contact_data", {}),
+        unified_data.contact_data,
         global_transform
     )
     

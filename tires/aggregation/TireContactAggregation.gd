@@ -25,23 +25,16 @@ func build_unified_contact_data(
 	contact_grips: Array,
 	global_origin: Vector3,
 	stiffness: float
-) -> Dictionary:
-	var data = {
-		"total_force": Vector3.ZERO,
-		"total_torque": Vector3.ZERO,
-		"units": {"force": "N", "torque": "N.m"},
-		"space": {"total_force": "world", "total_torque": "world"},
-		"average_position": Vector3.ZERO,
-		"average_normal": Vector3.UP,
-		"contact_area": 0.0,
-		"max_pressure": 0.0,
-		"average_grip": 1.0,
-		"weighted_grip": 1.0,
-		"contact_points": contact_points,
-		"contact_data": {}
-	}
+) -> ContactPatchData:
+	var data := ContactPatchData.new()
+	data.contact_points = contact_points
 
 	if contact_points.is_empty():
+		data.contact_data = {
+			"position": Vector3.ZERO,
+			"normal": Vector3.UP,
+			"distance": 0.0
+		}
 		return data
 
 	var weight_inputs: Array = []
@@ -58,31 +51,30 @@ func build_unified_contact_data(
 			force_dir.z * contact_grips[i]
 		)
 
-		data["total_force"] += grip_force
-		data["average_position"] += contact_points[i]
-		data["average_normal"] += contact_normals[i]
-		data["contact_area"] += contact_forces[i] / max(stiffness, 1.0)
-		data["max_pressure"] = max(data["max_pressure"], contact_forces[i])
-		data["average_grip"] += contact_grips[i]
+		data.total_force += grip_force
+		data.average_position += contact_points[i]
+		data.average_normal += contact_normals[i]
+		data.contact_area += contact_forces[i] / max(stiffness, 1.0)
+		data.max_pressure = maxf(data.max_pressure, contact_forces[i])
+		data.average_grip += contact_grips[i]
 
-	data["average_position"] /= contact_points.size()
-	data["average_normal"] = data["average_normal"].normalized()
-	data["average_grip"] /= contact_points.size()
+	data.average_position /= contact_points.size()
+	data.average_normal = data.average_normal.normalized()
+	data.average_grip /= contact_points.size()
 
 	for i in contact_points.size():
 		var lever_arm = contact_points[i] - global_origin
 		var force_dir = contact_normals[i] * contact_forces[i] * contact_grips[i]
-		data["total_torque"] += lever_arm.cross(force_dir)
+		data.total_torque += lever_arm.cross(force_dir)
 
 	if not normalized_weights.is_empty():
-		data["weighted_grip"] = 0.0
+		data.weighted_grip = 0.0
 		for i in contact_points.size():
-			data["weighted_grip"] += contact_grips[i] * float(normalized_weights[i])
+			data.weighted_grip += contact_grips[i] * float(normalized_weights[i])
 
-	data["contact_data"] = {
-		"position": data["average_position"],
-		"normal": data["average_normal"],
-		"distance": (data["average_position"] - global_origin).length()
+	data.contact_data = {
+		"position": data.average_position,
+		"normal": data.average_normal,
+		"distance": (data.average_position - global_origin).length()
 	}
-
 	return data

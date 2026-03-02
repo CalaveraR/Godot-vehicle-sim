@@ -122,7 +122,7 @@ func calculate_local_grip(lateral_pos: float, position: Vector3) -> float:
 		zone_grip_factors
 	)
 
-func calculate_unified_data() -> Dictionary:
+func calculate_unified_data() -> ContactPatchData:
 	return _contact_aggregation.build_unified_contact_data(
 		contact_points,
 		contact_normals,
@@ -132,7 +132,7 @@ func calculate_unified_data() -> Dictionary:
 		stiffness
 	)
 
-func apply_to_suspension(data: Dictionary) -> void:
+func apply_to_suspension(data: ContactPatchData) -> void:
 	_suspension_bridge.apply_to_suspension(
 		suspension_system,
 		data,
@@ -141,15 +141,14 @@ func apply_to_suspension(data: Dictionary) -> void:
 		rim_diameter
 	)
 
-func apply_to_wheel(data: Dictionary) -> void:
+func apply_to_wheel(data: ContactPatchData) -> void:
 	_contact_runtime.apply_to_wheel(wheel, data)
 
-func apply_to_tire_system(data: Dictionary) -> void:
-	_contact_runtime.apply_to_tire_system(tire_system, data, Callable(self, "update_wear_and_temperature"))
+func apply_to_tire_system(data: ContactPatchData, step_dt: float) -> void:
+	_contact_runtime.apply_to_tire_system(tire_system, data, Callable(self, "update_wear_and_temperature").bind(step_dt))
 
-func update_wear_and_temperature(data: Dictionary) -> void:
-	var delta = get_physics_process_delta_time()
-	_surface_response.update_wear_and_temperature(tire_system, wheel_dynamics, data, delta)
+func update_wear_and_temperature(data: ContactPatchData, step_dt: float) -> void:
+	_surface_response.update_wear_and_temperature(tire_system, wheel_dynamics, data, step_dt)
 	update_aquaplaning_effects()
 	update_zone_grip_from_tire_wear()
 
@@ -184,12 +183,12 @@ func get_clipping_ratio(body: Node3D) -> float:
 func _stage_read_samples() -> void:
 	update_contact_data()
 
-func _stage_aggregate_patch() -> Dictionary:
+func _stage_aggregate_patch() -> ContactPatchData:
 	return calculate_unified_data()
 
-func _stage_apply_forces(unified_data: Dictionary) -> void:
+func _stage_apply_forces(unified_data: ContactPatchData, step_dt: float) -> void:
 	# Ordem determinística: surface response -> suspension bridge -> output forces
-	apply_to_tire_system(unified_data)
+	apply_to_tire_system(unified_data, step_dt)
 	apply_to_suspension(unified_data)
 	apply_to_wheel(unified_data)
 	_contact_runtime.apply_clipping_overlaps(clipping_area, Callable(self, "apply_clipping_forces"))
@@ -202,17 +201,15 @@ func _should_step(delta: float) -> bool:
 	_time_accumulator -= step_dt
 	return true
 
-func step_runtime_pipeline(delta: float = 0.0, force: bool = false) -> Dictionary:
+func step_runtime_pipeline(delta: float = 0.0, force: bool = false) -> ContactPatchData:
 	if not force and not _should_step(delta):
-		return {
-			"skipped": true,
-			"reason": "fixed_tick_limiter",
-		}
+		return ContactPatchData.new()
 
 	# Ordem determinística: leitura -> agregação -> aplicação no corpo
 	_stage_read_samples()
+	var step_dt := 1.0 / maxf(fixed_tick_hz, 1.0)
 	var unified_data := _stage_aggregate_patch()
-	_stage_apply_forces(unified_data)
+	_stage_apply_forces(unified_data, step_dt)
 	return unified_data
 
 func _physics_process(delta: float) -> void:

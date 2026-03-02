@@ -11,7 +11,7 @@ func solve(samples: Array[TireSample], patch: ContactPatch, delta: float) -> Dic
 	return solve_patch_data(patch_data, delta)
 
 func solve_patch_data(patch_data: ContactPatchData, _delta: float) -> Dictionary:
-	var center_ws := _center_of_pressure_ws(patch_data)
+	var center_ws := patch_data.get_center_of_pressure_ws()
 	if not enable_pressure_model:
 		return {
 			"normal_loads": PackedFloat32Array(),
@@ -43,12 +43,3 @@ func solve_patch_data(patch_data: ContactPatchData, _delta: float) -> Dictionary
 		"Fz_total": fz_total,
 		"center_of_pressure_ws": center_ws,
 	}
-
-
-func _center_of_pressure_ws(patch_data: ContactPatchData) -> Vector3:
-	if patch_data.samples.is_empty() or patch_data.normalized_weights.is_empty():
-		return Vector3.ZERO
-	var acc := Vector3.ZERO
-	for i in range(min(patch_data.samples.size(), patch_data.normalized_weights.size())):
-		acc += patch_data.samples[i].contact_pos_ws * float(patch_data.normalized_weights[i])
-	return acc

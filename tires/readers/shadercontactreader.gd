@@ -1,11 +1,14 @@
 class_name ShaderContactReader
-extends Node
+extends Node3D
 
 @export var grid_w: int = 90
 @export var grid_h: int = 120
 @export var tire_width: float = 0.205
 @export var tire_radius: float = 0.33
 @export var shader_texture: Texture2D
+
+# Roadmap: leitura atual usa get_image/get_data (baseline funcional).
+# Próxima etapa: ring buffer assíncrono para evitar stalls de readback.
 
 var _cell_local_pos: PackedVector3Array = []
 var _initialized: bool = false
@@ -35,7 +38,7 @@ func _rebuild() -> void:
 func set_source_texture(tex: Texture2D) -> void:
 	shader_texture = tex
 
-func read_samples(now_s: float = -1.0) -> Array[TireSample]:
+func read_samples(xform: Transform3D, now_s: float = -1.0, fallback_normal_ws: Vector3 = Vector3.UP) -> Array[TireSample]:
 	if not _initialized:
 		_initialize()
 
@@ -60,8 +63,8 @@ func read_samples(now_s: float = -1.0) -> Array[TireSample]:
 
 	var total_cells := min(expected_cells, available_cells)
 	var samples: Array[TireSample] = []
-	var global_xform := global_transform
-	var inv := global_xform.affine_inverse()
+	var inv := xform.affine_inverse()
+	var normal_ws := fallback_normal_ws.normalized()
 
 	for idx in range(total_cells):
 		var offset := idx * bytes_per_pixel
@@ -70,10 +73,9 @@ func read_samples(now_s: float = -1.0) -> Array[TireSample]:
 		var slip_y := data.decode_float(offset + 8)
 		var conf := clampf(data.decode_float(offset + 12), 0.0, 1.0)
 
-		var world_pos := global_xform * _cell_local_pos[idx]
+		var world_pos := xform * _cell_local_pos[idx]
 		var local_pos := inv * world_pos
-		var world_normal := Vector3.UP
-		var local_normal := (inv.basis * world_normal).normalized()
+		var local_normal := (inv.basis * normal_ws).normalized()
 
 		var sample := TireSample.from_shader(
 			idx % grid_w,
@@ -84,7 +86,7 @@ func read_samples(now_s: float = -1.0) -> Array[TireSample]:
 			conf,
 			Vector2(slip_x, slip_y),
 			world_pos,
-			world_normal
+			normal_ws
 		)
 		sample.timestamp_s = now_s
 		samples.append(sample)
