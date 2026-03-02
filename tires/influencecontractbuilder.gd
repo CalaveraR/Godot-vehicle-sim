@@ -46,20 +46,20 @@ func build(
 	var contract = NeutralInfluenceContract.new(timestamp_ms)
 	contract.contract_id = _create_contract_id(timestamp_ms)
 	contract.authority_level = authority_level
-	
+
 	# Garantir que os dicionários existam
 	contract.allowed_operations = {}
 	contract.operational_values = {}
 	contract.diagnostic = {}
-	
+
 	# Configurar modo, operações permitidas e valores físicos
 	_configure_contract_mode(contract, authority_level, geometry_data)
 	_set_allowed_operations(contract, authority_level)
 	_set_operational_values(contract, geometry_data)
-	
+
 	# Preencher diagnóstico
 	_set_diagnostic(contract, shader_state, geometry_data, authority_level)
-	
+
 	return contract
 
 # ------------------------------------------------------------
@@ -80,15 +80,15 @@ func _configure_contract_mode(
 		AUTHORITY_SHADER_PRIMARY:
 			contract.operation_mode = "none"
 			contract.diagnostic["suggested_action"] = "none"
-			
+
 		AUTHORITY_SHADER_LIMITED:
 			contract.operation_mode = "clamp"
 			contract.diagnostic["suggested_action"] = "apply_physical_limits"
-			
+
 		AUTHORITY_GEOMETRY_FALLBACK:
 			contract.operation_mode = "geometry_reference"
 			contract.diagnostic["suggested_action"] = "use_reference_only"
-		
+
 		_:
 			# Fallback seguro
 			contract.operation_mode = "clamp"
@@ -101,28 +101,32 @@ func _set_allowed_operations(
 	contract: NeutralInfluenceContract,
 	authority: String
 ) -> void:
+	var base_ops = {
+		"modify_penetration": false,
+		"modify_confidence": false,
+		"modify_contact_width": false,
+		"modify_normal": false,
+		"modify_regions": false,
+		"suggest_timing": false
+	}
+
 	match authority:
 		AUTHORITY_SHADER_PRIMARY:
-			# Nenhuma operação permitida – shader é fonte primária
-			contract.allowed_operations = {}
-			
+			contract.allowed_operations = base_ops.duplicate()
+
 		AUTHORITY_SHADER_LIMITED:
-			contract.allowed_operations = {
-				"modify_penetration": true,
-				"modify_confidence": true,
-				"modify_contact_width": true,
-				"modify_normal": false,
-				"modify_regions": false,
-				"suggest_timing": true
-			}
-			
+			contract.allowed_operations = base_ops.duplicate()
+			contract.allowed_operations["modify_penetration"] = true
+			contract.allowed_operations["modify_confidence"] = true
+			contract.allowed_operations["modify_contact_width"] = true
+			contract.allowed_operations["suggest_timing"] = true
+
 		AUTHORITY_GEOMETRY_FALLBACK:
-			contract.allowed_operations = {
-				"suggest_timing": true
-			}
-			
+			contract.allowed_operations = base_ops.duplicate()
+			contract.allowed_operations["suggest_timing"] = true
+
 		_:
-			contract.allowed_operations = {}
+			contract.allowed_operations = base_ops.duplicate()
 
 # ------------------------------------------------------------
 # Preenche os valores operacionais (limites físicos, plano de referência)
@@ -132,7 +136,7 @@ func _set_operational_values(
 	geometry: Dictionary
 ) -> void:
 	var constraints = geometry.get("physical_constraints", {})
-	
+
 	contract.operational_values = {
 		"max_penetration": constraints.get("max_penetration", 0.2),
 		"min_confidence": 0.3,
@@ -164,18 +168,18 @@ func _set_diagnostic(
 # ------------------------------------------------------------
 func _calculate_plausibility_score(shader: Dictionary, geometry: Dictionary) -> float:
 	var score = 1.0
-	
+
 	# Discordância na existência de contato
 	var has_geom_contact = geometry.get("has_contact", false)
 	var has_shader_contact = shader.get("has_contact", false)
 	if has_geom_contact != has_shader_contact:
 		score *= 0.7
-	
+
 	# Penetração fisicamente implausível
 	if geometry.has("physical_constraints"):
 		var shader_pen = shader.get("avg_penetration", 0.0)
 		var max_pen = geometry["physical_constraints"].get("max_penetration", INF)
 		if shader_pen > max_pen * 1.5:
 			score *= 0.6
-	
+
 	return clamp(score, 0.0, 1.0)
