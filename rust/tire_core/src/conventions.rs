@@ -29,3 +29,11 @@ impl Default for SimCalibration {
 pub fn parse_calibration_json(payload: &str) -> Result<SimCalibration, serde_json::Error> {
     serde_json::from_str(payload)
 }
+
+#[cfg(feature = "serde")]
+impl SimCalibration {
+    pub fn from_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let payload = std::fs::read_to_string(path)?;
+        Ok(parse_calibration_json(&payload)?)
+    }
+}
