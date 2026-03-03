@@ -1,0 +1,12 @@
+{
+  "version": "sim_calibration_v1",
+  "core": {
+    "epsilon": 1.0e-6,
+    "min_stiffness": 1.0e-4,
+    "min_positive_weight": 0.0,
+    "contact_penetration_threshold": 0.0
+  },
+  "slew_per_second": 50000.0,
+  "energy_clamp_per_tick": 8000.0,
+  "confidence_threshold": 0.1
+}

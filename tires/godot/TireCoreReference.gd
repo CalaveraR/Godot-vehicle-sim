@@ -10,9 +10,31 @@ const DEFAULT_CONVENTIONS := {
 	"min_positive_weight": 0.0,
 	"contact_penetration_threshold": 0.0,
 }
+const CALIBRATION_PATH := "res://tires/shared/sim_calibration_v1.json"
+
+static func load_calibration() -> Dictionary:
+	if not FileAccess.file_exists(CALIBRATION_PATH):
+		return {
+			"version": "sim_calibration_v1",
+			"core": DEFAULT_CONVENTIONS.duplicate(true),
+		}
+	var raw := FileAccess.get_file_as_string(CALIBRATION_PATH)
+	if raw.is_empty():
+		return {
+			"version": "sim_calibration_v1",
+			"core": DEFAULT_CONVENTIONS.duplicate(true),
+		}
+	var parsed: Variant = JSON.parse_string(raw)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {
+			"version": "sim_calibration_v1",
+			"core": DEFAULT_CONVENTIONS.duplicate(true),
+		}
+	return parsed
 
 static func resolve_conventions(overrides: Dictionary = {}) -> Dictionary:
-	var out := DEFAULT_CONVENTIONS.duplicate(true)
+	var calibration := load_calibration()
+	var out := (calibration.get("core", DEFAULT_CONVENTIONS)).duplicate(true)
 	for key in overrides.keys():
 		out[key] = overrides[key]
 	return out

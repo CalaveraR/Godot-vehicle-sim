@@ -3,6 +3,12 @@
 class_name TireRuntimeCoordinator
 extends Node3D
 
+enum BackendMode {
+	GDSCRIPT,
+	RUST,
+	SHADOW,
+}
+
 # Single Authority Rule: este é o único entrypoint autorizado
 # para executar o pipeline de pneu e aplicar forças no body.
 
@@ -39,6 +45,8 @@ var contact_grips: Array = []
 var zone_grip_factors: Dictionary = {}
 @export var auto_step_runtime: bool = false
 @export var fixed_tick_hz: float = 120.0
+@export var backend_mode: BackendMode = BackendMode.GDSCRIPT
+@export var shadow_compare_epsilon: float = 0.02
 
 var _time_accumulator: float = 0.0
 
@@ -188,7 +196,33 @@ func _stage_read_samples() -> void:
 	update_contact_data()
 
 func _stage_aggregate_patch() -> ContactPatchData:
+	match backend_mode:
+		BackendMode.RUST:
+			return _aggregate_patch_rust()
+		BackendMode.SHADOW:
+			return _aggregate_patch_shadow()
+		_:
+			return calculate_unified_data()
+
+func _aggregate_patch_rust() -> ContactPatchData:
+	# Bridge real com Rust/GDExtension ainda em evolução.
+	# Enquanto isso mantemos o mesmo contrato e ponto de troca aqui.
 	return calculate_unified_data()
+
+func _aggregate_patch_shadow() -> ContactPatchData:
+	var gd := calculate_unified_data()
+	var rust := _aggregate_patch_rust()
+	_log_shadow_delta(gd, rust)
+	return gd
+
+func _log_shadow_delta(gd: ContactPatchData, rust: ContactPatchData) -> void:
+	if not gd or not rust:
+		return
+	var force_delta := (gd.total_force - rust.total_force).length()
+	var torque_delta := (gd.total_torque - rust.total_torque).length()
+	var grip_delta := absf(gd.weighted_grip - rust.weighted_grip)
+	if force_delta > shadow_compare_epsilon or torque_delta > shadow_compare_epsilon or grip_delta > shadow_compare_epsilon:
+		push_warning("[SHADOW] Tire core delta > epsilon | force=%s torque=%s grip=%s" % [force_delta, torque_delta, grip_delta])
 
 func _stage_apply_forces(unified_data: ContactPatchData, step_dt: float) -> void:
 	# Ordem determinística: surface response -> suspension bridge -> output forces
