@@ -1,3 +1,5 @@
+# [ENGINE] RaycastSampleReader
+# Engine-facing sensor reader (Godot physics query).
 # res://core/input/raycast/RaycastSampleReader.gd
 class_name RaycastSampleReader
 extends Node3D

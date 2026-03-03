@@ -1,3 +1,5 @@
+# [ENGINE] Wheel
+# Scene integration entrypoint for wheel subsystems.
 class_name Wheel
 extends Node
 

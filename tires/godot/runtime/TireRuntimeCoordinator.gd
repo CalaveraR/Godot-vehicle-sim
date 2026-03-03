@@ -1,3 +1,5 @@
+# [ENGINE] TireRuntimeCoordinator
+# Single authority orchestrator for tire pipeline and engine application.
 class_name TireRuntimeCoordinator
 extends Node3D
 

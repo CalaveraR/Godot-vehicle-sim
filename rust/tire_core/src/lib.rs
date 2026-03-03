@@ -1,3 +1,5 @@
+//! [CORE_RS] tire_core
+//! Deterministic Rust golden core for tire logic parity.
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -231,6 +233,242 @@ pub fn compute_effective_radius_with_conventions(
         .min(tire_radius)
 }
 
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Vec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Vec2 {
+    pub fn length(self) -> f32 { (self.x * self.x + self.y * self.y).sqrt() }
+    pub fn normalized(self) -> Self {
+        let len = self.length();
+        if len <= 1.0e-6 { Self::default() } else { Self { x: self.x / len, y: self.y / len } }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Vec3 {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+impl Vec3 {
+    pub fn dot(self, rhs: Self) -> f32 { self.x * rhs.x + self.y * rhs.y + self.z * rhs.z }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TireSampleMirror {
+    pub valid: bool,
+    pub contact_pos_local: Vec3,
+    pub contact_normal_local: Vec3,
+    pub contact_pos_ws: Vec3,
+    pub penetration: f32,
+    pub confidence: f32,
+    pub slip_vector: Vec2,
+    pub penetration_velocity: f32,
+}
+
+impl Default for TireSampleMirror {
+    fn default() -> Self {
+        Self {
+            valid: false,
+            contact_pos_local: Vec3::default(),
+            contact_normal_local: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+            contact_pos_ws: Vec3::default(),
+            penetration: 0.0,
+            confidence: 0.0,
+            slip_vector: Vec2::default(),
+            penetration_velocity: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ContactPatchDataMirror {
+    pub patch_confidence: f32,
+    pub center_of_pressure_local: Vec3,
+    pub penetration_avg: f32,
+    pub penetration_max: f32,
+    pub average_slip: Vec2,
+    pub normalized_weights: Vec<f32>,
+    pub total_weight: f32,
+}
+
+impl Default for ContactPatchDataMirror {
+    fn default() -> Self {
+        Self {
+            patch_confidence: 0.0,
+            center_of_pressure_local: Vec3::default(),
+            penetration_avg: 0.0,
+            penetration_max: 0.0,
+            average_slip: Vec2::default(),
+            normalized_weights: vec![],
+            total_weight: 0.0,
+        }
+    }
+}
+
+impl ContactPatchDataMirror {
+    pub fn from_samples(samples: &[TireSampleMirror]) -> Self {
+        if samples.is_empty() { return Self::default(); }
+
+        let mut weighted_pos_local = Vec3::default();
+        let mut weighted_slip = Vec2::default();
+        let mut conf_sum = 0.0;
+        let mut penetration_sum = 0.0;
+        let mut valid_count = 0.0;
+        let mut raw_weights = vec![0.0; samples.len()];
+        let mut total_weight = 0.0;
+        let mut penetration_max: f32 = 0.0;
+
+        for (i, sample) in samples.iter().enumerate() {
+            if !sample.valid {
+                continue;
+            }
+            let w = sample.penetration.max(0.0) * sample.confidence.clamp(0.0, 1.0);
+            raw_weights[i] = w;
+            if w <= 0.0 {
+                continue;
+            }
+            weighted_pos_local.x += sample.contact_pos_local.x * w;
+            weighted_pos_local.y += sample.contact_pos_local.y * w;
+            weighted_pos_local.z += sample.contact_pos_local.z * w;
+
+            weighted_slip.x += sample.slip_vector.x * w;
+            weighted_slip.y += sample.slip_vector.y * w;
+
+            penetration_sum += sample.penetration;
+            penetration_max = penetration_max.max(sample.penetration);
+            conf_sum += sample.confidence;
+            total_weight += w;
+            valid_count += 1.0;
+        }
+
+        let normalized_weights = normalize_weights(&raw_weights);
+        if total_weight <= 0.0 || valid_count == 0.0 {
+            return Self { normalized_weights, ..Self::default() };
+        }
+
+        Self {
+            patch_confidence: (conf_sum / valid_count).clamp(0.0, 1.0),
+            center_of_pressure_local: Vec3 {
+                x: weighted_pos_local.x / total_weight,
+                y: weighted_pos_local.y / total_weight,
+                z: weighted_pos_local.z / total_weight,
+            },
+            penetration_avg: penetration_sum / valid_count,
+            penetration_max,
+            average_slip: Vec2 {
+                x: weighted_slip.x / total_weight,
+                y: weighted_slip.y / total_weight,
+            },
+            normalized_weights,
+            total_weight,
+        }
+    }
+
+    pub fn center_of_pressure_ws(&self, samples: &[TireSampleMirror]) -> Vec3 {
+        if samples.is_empty() || self.normalized_weights.is_empty() { return Vec3::default(); }
+        let mut acc = Vec3::default();
+        for (s, w) in samples.iter().zip(self.normalized_weights.iter().copied()) {
+            acc.x += s.contact_pos_ws.x * w;
+            acc.y += s.contact_pos_ws.y * w;
+            acc.z += s.contact_pos_ws.z * w;
+        }
+        acc
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TireCoreMirrorConfig {
+    pub confidence_min_for_contact: f32,
+    pub emergency_fz_falloff_rate: f32,
+    pub energy_delta_limit: f32,
+}
+
+impl Default for TireCoreMirrorConfig {
+    fn default() -> Self {
+        Self {
+            confidence_min_for_contact: 0.1,
+            emergency_fz_falloff_rate: 10.0,
+            energy_delta_limit: 8000.0,
+        }
+    }
+}
+
+pub fn step_wheel_mirror(
+    shader_samples: &[TireSampleMirror],
+    raycast_samples: &[TireSampleMirror],
+    dt: f32,
+    current_velocity_ws: Vec3,
+    previous_fz: f32,
+    config: TireCoreMirrorConfig,
+) -> TireForcesMirror {
+    let mut merged = Vec::with_capacity(shader_samples.len() + raycast_samples.len());
+    merged.extend_from_slice(shader_samples);
+    merged.extend_from_slice(raycast_samples);
+
+    let patch = ContactPatchDataMirror::from_samples(&merged);
+    let mut out = TireForcesMirror {
+        contact_confidence: patch.patch_confidence,
+        center_of_pressure_ws: {
+            let cop = patch.center_of_pressure_ws(&merged);
+            [cop.x, cop.y, cop.z]
+        },
+        ..TireForcesMirror::default()
+    };
+
+    if patch.patch_confidence < config.confidence_min_for_contact && raycast_samples.is_empty() {
+        let t = (dt * config.emergency_fz_falloff_rate).clamp(0.0, 1.0);
+        out.fz = previous_fz + (0.0 - previous_fz) * t;
+        return out;
+    }
+
+    let base_k = 120000.0;
+    let base_c = 3000.0;
+    let pen_rate = if merged.is_empty() {
+        0.0
+    } else {
+        merged.iter().map(|s| s.penetration_velocity).sum::<f32>() / merged.len() as f32
+    };
+
+    out.fz = (base_k * patch.penetration_avg + base_c * pen_rate).max(0.0);
+    out.fx = -patch.average_slip.x * out.fz * 0.5;
+    out.fy = -patch.average_slip.y * out.fz * 0.7;
+
+    let mut tangential = Vec2 { x: out.fx, y: out.fy };
+    let max_tangent = out.fz;
+    if tangential.length() > max_tangent && tangential.length() > 0.0 {
+        tangential = tangential.normalized();
+        out.fx = tangential.x * max_tangent;
+        out.fy = tangential.y * max_tangent;
+    }
+
+    out.mz = out.fy * patch.center_of_pressure_local.x;
+
+    if dt > 0.0 {
+        let f = Vec3 { x: out.fx, y: out.fz, z: out.fy };
+        let delta_e = (f.dot(current_velocity_ws) * dt).abs();
+        if delta_e > config.energy_delta_limit {
+            let scale = config.energy_delta_limit / delta_e.max(1.0e-6);
+            out.fx *= scale;
+            out.fy *= scale;
+            out.fz *= scale;
+            out.mz *= scale;
+        }
+    }
+
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -299,4 +537,47 @@ mod tests {
         assert_eq!(restored.tire_radius, 0.34);
         assert_eq!(restored.throttle_input, 0.7);
     }
+
+    #[test]
+    fn contact_patch_from_samples_computes_weighted_values() {
+        let samples = vec![
+            TireSampleMirror {
+                valid: true,
+                contact_pos_local: Vec3 { x: 0.2, y: 0.0, z: 0.0 },
+                contact_pos_ws: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+                penetration: 0.02,
+                confidence: 1.0,
+                slip_vector: Vec2 { x: 0.4, y: 0.0 },
+                ..TireSampleMirror::default()
+            },
+            TireSampleMirror {
+                valid: true,
+                contact_pos_local: Vec3 { x: -0.2, y: 0.0, z: 0.0 },
+                contact_pos_ws: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+                penetration: 0.02,
+                confidence: 1.0,
+                slip_vector: Vec2 { x: -0.4, y: 0.0 },
+                ..TireSampleMirror::default()
+            },
+        ];
+        let patch = ContactPatchDataMirror::from_samples(&samples);
+        assert!((patch.patch_confidence - 1.0).abs() < 1.0e-6);
+        assert!(patch.center_of_pressure_local.x.abs() < 1.0e-6);
+        assert!(patch.average_slip.x.abs() < 1.0e-6);
+    }
+
+    #[test]
+    fn step_wheel_mirror_emergency_falloff_when_no_ground() {
+        let out = step_wheel_mirror(
+            &[],
+            &[],
+            0.1,
+            Vec3::default(),
+            1000.0,
+            TireCoreMirrorConfig::default(),
+        );
+        assert!(out.fz < 1000.0);
+        assert!(out.fz >= 0.0);
+    }
+
 }
