@@ -1,12 +1,7 @@
 //! [CORE_RS] tire_core
 //! Deterministic Rust golden core for tire logic parity.
-pub mod contact_patch_data;
 pub mod contract;
 pub mod conventions;
-pub mod tire_contact_aggregation;
-pub mod tire_core;
-pub mod tire_core_reference;
-pub mod tire_forces;
 pub mod transients;
 
 #[cfg(feature = "serde")]
