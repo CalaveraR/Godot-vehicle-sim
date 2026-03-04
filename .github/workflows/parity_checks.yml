@@ -1,0 +1,25 @@
+name: Parity checks
+
+on:
+  pull_request:
+  push:
+    branches: ["**"]
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run parity manifest
+        run: python3 tools/parity/run_all.py

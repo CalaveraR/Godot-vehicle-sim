@@ -11,7 +11,8 @@ Permanece em GDScript:
 ## Núcleo B — Wheel Suspension Core (Rust + espelho)
 Arquivos:
 - `core/SuspensionCoreContracts.rs`
-- `core/SuspensionCoreKernel.rs`
+- `core/SuspensionCore.rs` (nome canônico alinhado ao Godot)
+- `core/SuspensionCoreKernel.rs` (implementação interna)
 
 Funções puras portadas:
 - `compute_deformation_clamped` (parte pura de `apply_elastic_deformation`)
@@ -21,7 +22,8 @@ Funções puras portadas:
 
 ## Núcleo C — Suspension Type Core (Rust + espelho)
 Arquivo:
-- `core/SuspensionTypeKernels.rs`
+- `core/SuspensionTypeCore.rs` (nome canônico alinhado ao Godot)
+- `core/SuspensionTypeKernels.rs` (implementação interna)
 
 Cobertura:
 - McPherson (`calculate_specific_geometry` via valores já avaliados)
@@ -33,17 +35,27 @@ Cobertura:
 
 ## Núcleo D — Axle Core (Rust + espelho)
 Arquivo:
-- `core/AxleCoreKernel.rs`
+- `core/AxleCore.rs` (nome canônico alinhado ao Godot)
+- `core/AxleCoreKernel.rs` (implementação interna)
 
 Cobertura:
 - matemática de `SolidAxle` sem `get_node`
 
 ## Núcleo E — Response Core (Rust + espelho)
 Arquivo:
-- `core/SuspensionResponseCoreKernel.rs`
+- `core/SuspensionResponseCore.rs` (nome canônico alinhado ao Godot)
+- `core/SuspensionResponseCoreKernel.rs` (implementação interna)
 
 Cobertura:
 - parte pura de `SuspensionResponseSystem.calculate_dynamic_response`
+
+
+
+## Regra de nomenclatura (organização)
+
+Para facilitar rastreabilidade com GDScript:
+- arquivos canônicos em Rust usam os mesmos nomes de domínio do Godot (`SuspensionCore`, `SuspensionTypeCore`, `AxleCore`, `SuspensionResponseCore`);
+- sufixo `Kernel` fica reservado para implementação interna/legada durante transição.
 
 ## Regra de contrato
 Godot avalia curvas (`Curve.interpolate*`) e envia valores flat para o kernel Rust.
@@ -67,3 +79,17 @@ Godot avalia curvas (`Curve.interpolate*`) e envia valores flat para o kernel Ru
 - `calculate_specific_geometry` dos tipos (McPherson, Double Wishbone, MultiLink, Pull/Push Rod, Air)
 - `SuspensionResponseSystem.calculate_dynamic_response` (parte pura)
 - `SolidAxle` sem scene lookup
+
+## Paridade de cálculo (Godot ↔ Rust)
+
+Enquanto a ponte runtime completa evolui, valide a equivalência numérica das fórmulas-base com:
+
+```bash
+python3 suspension/tools/check_suspension_core_parity.py
+python3 suspension/tools/check_suspension_type_axle_response_parity.py
+```
+
+Fonte dos vetores de referência:
+- `suspension/shared/suspension_core_golden_v1.json`
+- `suspension/shared/suspension_type_axle_response_golden_v1.json`
+

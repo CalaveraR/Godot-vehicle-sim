@@ -1,0 +1,406 @@
+{
+  "version": "logic_port_candidates_v1",
+  "scope": "tires/godot",
+  "summary": {
+    "total_files": 46,
+    "pure_logic_candidate": 21,
+    "mixed_extractable": 6,
+    "runtime_bound": 12,
+    "alias_wrapper": 7
+  },
+  "entries": [
+    {
+      "file": "tires/godot/BrushModelSolver.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/ContactConfidenceModel.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/ContactPatch.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/ContractMerger.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "extends Node"
+      ]
+    },
+    {
+      "file": "tires/godot/NeutralInfluenceContract.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/RaycastAnchorOrchestrator.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "Node3D",
+        "extends Node",
+        "extends Node3D"
+      ]
+    },
+    {
+      "file": "tires/godot/TemporalHistory.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/TireContactAggregation.gd",
+      "category": "alias_wrapper",
+      "wave": null,
+      "reasons": [
+        "compat alias wrapper"
+      ]
+    },
+    {
+      "file": "tires/godot/TireContactRuntime.gd",
+      "category": "alias_wrapper",
+      "wave": null,
+      "reasons": [
+        "compat alias wrapper"
+      ]
+    },
+    {
+      "file": "tires/godot/TireContactSolverpipeline.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "global_transform",
+        "extends Node"
+      ]
+    },
+    {
+      "file": "tires/godot/TireCoreReference.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/TireManager.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "extends Node"
+      ]
+    },
+    {
+      "file": "tires/godot/TireProfileMeshBuilder.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/TireRigidBodyApplicator.gd",
+      "category": "mixed_extractable",
+      "wave": 2,
+      "reasons": [
+        "runtime tokens in otherwise pure class",
+        "RigidBody",
+        "apply_central_force",
+        "apply_force"
+      ]
+    },
+    {
+      "file": "tires/godot/TireRuntimeCoordinator.gd",
+      "category": "alias_wrapper",
+      "wave": null,
+      "reasons": [
+        "compat alias wrapper"
+      ]
+    },
+    {
+      "file": "tires/godot/TireSurfaceResponseModel.gd",
+      "category": "alias_wrapper",
+      "wave": null,
+      "reasons": [
+        "compat alias wrapper"
+      ]
+    },
+    {
+      "file": "tires/godot/aggregation/TireContactAggregation.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/apply_raycast_influence.gd",
+      "category": "mixed_extractable",
+      "wave": 2,
+      "reasons": [
+        "default conservative classification"
+      ]
+    },
+    {
+      "file": "tires/godot/applyinfluencetoshaderstate.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/bridge/TireInputBridge.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/bridge/TireOutputBridge.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/bridge/TireSuspensionBridge.gd",
+      "category": "mixed_extractable",
+      "wave": 2,
+      "reasons": [
+        "default conservative classification"
+      ]
+    },
+    {
+      "file": "tires/godot/contactpatchbuilder.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/contactpatchstate.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/contactstatemachine.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "extends Node"
+      ]
+    },
+    {
+      "file": "tires/godot/contractratelimiter.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "extends Node"
+      ]
+    },
+    {
+      "file": "tires/godot/core/ContactPatchData.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/core/TireCore.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/core/TireForces.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/data/WheelState.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/data/tiresample.gd",
+      "category": "mixed_extractable",
+      "wave": 2,
+      "reasons": [
+        "Time.get_unix_time_from_system",
+        "Engine.get_process_frames"
+      ]
+    },
+    {
+      "file": "tires/godot/forceregimeevaluator.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/geometryengine.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "Physics",
+        "global_transform"
+      ]
+    },
+    {
+      "file": "tires/godot/influencecontractbuilder.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/pressurefieldsolver.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    },
+    {
+      "file": "tires/godot/raycastsamplereader.gd",
+      "category": "alias_wrapper",
+      "wave": null,
+      "reasons": [
+        "compat alias wrapper"
+      ]
+    },
+    {
+      "file": "tires/godot/readers/raycastsamplereader.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "Physics",
+        "global_transform",
+        "Node3D",
+        "extends Node"
+      ]
+    },
+    {
+      "file": "tires/godot/readers/shadercontactreader.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "Node3D",
+        "extends Node",
+        "extends Node3D"
+      ]
+    },
+    {
+      "file": "tires/godot/runtime/TireContactRuntime.gd",
+      "category": "mixed_extractable",
+      "wave": 2,
+      "reasons": [
+        "runtime tokens in otherwise pure class",
+        "RayCast",
+        "RigidBody",
+        "Area3D"
+      ]
+    },
+    {
+      "file": "tires/godot/runtime/TireRuntimeCoordinator.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "get_node",
+        "add_child",
+        "queue_free",
+        "RayCast"
+      ]
+    },
+    {
+      "file": "tires/godot/shadercontactreader.gd",
+      "category": "alias_wrapper",
+      "wave": null,
+      "reasons": [
+        "compat alias wrapper"
+      ]
+    },
+    {
+      "file": "tires/godot/surface/TireSurfaceResponseModel.gd",
+      "category": "mixed_extractable",
+      "wave": 2,
+      "reasons": [
+        "runtime tokens in otherwise pure class",
+        "RigidBody",
+        "Area3D",
+        "global_transform"
+      ]
+    },
+    {
+      "file": "tires/godot/temporal_dynamics_system.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "extends Node"
+      ]
+    },
+    {
+      "file": "tires/godot/tirephysicsorchestrator.gd",
+      "category": "runtime_bound",
+      "wave": null,
+      "reasons": [
+        "Physics",
+        "RigidBody",
+        "apply_central_force",
+        "apply_force"
+      ]
+    },
+    {
+      "file": "tires/godot/tiresample.gd",
+      "category": "alias_wrapper",
+      "wave": null,
+      "reasons": [
+        "compat alias wrapper"
+      ]
+    },
+    {
+      "file": "tires/godot/tools/CoreSnapshotRecorder.gd",
+      "category": "pure_logic_candidate",
+      "wave": 1,
+      "reasons": [
+        "refcounted/no runtime token"
+      ]
+    }
+  ]
+}

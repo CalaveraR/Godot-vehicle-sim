@@ -1,0 +1,145 @@
+{
+  "version": "suspension_core_golden_v1",
+  "cases": [
+    {
+      "name": "low_load_nominal",
+      "deformation": [
+        0.01,
+        -0.02,
+        0.03
+      ],
+      "tire_induced_deformation": [
+        0.005,
+        -0.005,
+        0.002
+      ],
+      "effective_radius_input": {
+        "total_load": 1200.0,
+        "base_vertical_stiffness": 150000.0,
+        "tire_radius": 0.3,
+        "min_effective_radius": 0.1,
+        "vertical_stiffness_mul": 1.0,
+        "dynamic_radius_mul": 1.0
+      },
+      "relaxation": {
+        "default": 1.0,
+        "curve": 0.92
+      },
+      "lateral_deformation": {
+        "curve": 0.018
+      }
+    },
+    {
+      "name": "mid_load_curve_zero_fallback",
+      "deformation": [
+        0.08,
+        -0.1,
+        -0.06
+      ],
+      "tire_induced_deformation": [
+        0.05,
+        -0.12,
+        -0.08
+      ],
+      "effective_radius_input": {
+        "total_load": 4200.0,
+        "base_vertical_stiffness": 155000.0,
+        "tire_radius": 0.31,
+        "min_effective_radius": 0.12,
+        "vertical_stiffness_mul": 0.0,
+        "dynamic_radius_mul": 0.0
+      },
+      "relaxation": {
+        "default": 1.1,
+        "curve": null
+      },
+      "lateral_deformation": {
+        "curve": null
+      }
+    },
+    {
+      "name": "high_load_negative_curve_fallback",
+      "deformation": [
+        0.11,
+        -0.25,
+        0.12
+      ],
+      "tire_induced_deformation": [
+        0.02,
+        -0.01,
+        0.03
+      ],
+      "effective_radius_input": {
+        "total_load": 9200.0,
+        "base_vertical_stiffness": 140000.0,
+        "tire_radius": 0.33,
+        "min_effective_radius": 0.11,
+        "vertical_stiffness_mul": -0.5,
+        "dynamic_radius_mul": -1.0
+      },
+      "relaxation": {
+        "default": 0.95,
+        "curve": 0.83
+      },
+      "lateral_deformation": {
+        "curve": 0.041
+      }
+    },
+    {
+      "name": "negative_load_clamped",
+      "deformation": [
+        -0.04,
+        -0.01,
+        0.02
+      ],
+      "tire_induced_deformation": [
+        0.01,
+        -0.03,
+        0.01
+      ],
+      "effective_radius_input": {
+        "total_load": -500.0,
+        "base_vertical_stiffness": 150000.0,
+        "tire_radius": 0.3,
+        "min_effective_radius": 0.1,
+        "vertical_stiffness_mul": 1.0,
+        "dynamic_radius_mul": 1.0
+      },
+      "relaxation": {
+        "default": 1.0,
+        "curve": null
+      },
+      "lateral_deformation": {
+        "curve": null
+      }
+    },
+    {
+      "name": "tiny_stiffness_safe_denominator",
+      "deformation": [
+        0.0,
+        -0.21,
+        0.0
+      ],
+      "tire_induced_deformation": [
+        0.0,
+        -0.05,
+        0.0
+      ],
+      "effective_radius_input": {
+        "total_load": 3000.0,
+        "base_vertical_stiffness": 0.0,
+        "tire_radius": 0.3,
+        "min_effective_radius": 0.1,
+        "vertical_stiffness_mul": 0.8,
+        "dynamic_radius_mul": 1.0
+      },
+      "relaxation": {
+        "default": 0.9,
+        "curve": 0.9
+      },
+      "lateral_deformation": {
+        "curve": 0.0
+      }
+    }
+  ]
+}

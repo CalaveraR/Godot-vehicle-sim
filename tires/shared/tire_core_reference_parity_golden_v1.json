@@ -1,0 +1,30 @@
+{
+  "version": "tire_core_reference_parity_golden_v1",
+  "normalize_weights": [
+    {"name": "all_positive", "weights": [1.0, 2.0, 3.0], "conventions": {"epsilon": 1e-6, "min_positive_weight": 0.0}},
+    {"name": "with_non_positive", "weights": [1.0, 0.0, -2.0, 4.0], "conventions": {"epsilon": 1e-6, "min_positive_weight": 0.0}},
+    {"name": "sum_below_epsilon", "weights": [1e-9, 2e-9], "conventions": {"epsilon": 1e-6, "min_positive_weight": 0.0}}
+  ],
+  "aggregate_patch": [
+    {
+      "name": "mixed_contact",
+      "samples": [
+        {"weight": 1.0, "penetration": 0.010, "slip_x": 0.20, "slip_y": -0.10},
+        {"weight": 2.0, "penetration": 0.015, "slip_x": 0.05, "slip_y": -0.20},
+        {"weight": 0.0, "penetration": -0.001, "slip_x": 0.10, "slip_y": 0.30}
+      ],
+      "conventions": {"epsilon": 1e-6, "min_positive_weight": 0.0, "contact_penetration_threshold": 0.0}
+    },
+    {
+      "name": "empty_samples",
+      "samples": [],
+      "conventions": {"epsilon": 1e-6, "min_positive_weight": 0.0, "contact_penetration_threshold": 0.0}
+    }
+  ],
+  "compute_effective_radius": [
+    {"name": "nominal", "tire_radius": 0.33, "min_effective_radius": 0.20, "vertical_load": 1200.0, "stiffness": 120000.0, "conventions": {"min_stiffness": 1e-4}},
+    {"name": "negative_load", "tire_radius": 0.33, "min_effective_radius": 0.20, "vertical_load": -100.0, "stiffness": 120000.0, "conventions": {"min_stiffness": 1e-4}},
+    {"name": "zero_stiffness_safe", "tire_radius": 0.33, "min_effective_radius": 0.20, "vertical_load": 5000.0, "stiffness": 0.0, "conventions": {"min_stiffness": 1e-4}},
+    {"name": "invalid_radius", "tire_radius": 0.0, "min_effective_radius": 0.0, "vertical_load": 1000.0, "stiffness": 120000.0, "conventions": {"min_stiffness": 1e-4}}
+  ]
+}
