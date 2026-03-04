@@ -1,0 +1,17 @@
+{
+  "version": "parity_manifest_v1",
+  "checks": [
+    {
+      "name": "suspension_core_gd_vs_rust",
+      "command": "python3 suspension/tools/check_suspension_core_parity.py"
+    },
+    {
+      "name": "suspension_type_axle_response_gd_vs_rust",
+      "command": "python3 suspension/tools/check_suspension_type_axle_response_parity.py"
+    },
+    {
+      "name": "tires_rust_golden",
+      "command": "cd rust/tire_core && cargo test --quiet"
+    }
+  ]
+}
