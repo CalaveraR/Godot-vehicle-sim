@@ -74,8 +74,10 @@ Enquanto a ponte runtime completa evolui, valide a equivalência numérica das f
 
 ```bash
 python3 suspension/tools/check_suspension_core_parity.py
+python3 suspension/tools/check_suspension_type_axle_response_parity.py
 ```
 
 Fonte dos vetores de referência:
 - `suspension/shared/suspension_core_golden_v1.json`
+- `suspension/shared/suspension_type_axle_response_golden_v1.json`
 

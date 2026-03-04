@@ -1,0 +1,35 @@
+{
+  "version": "suspension_type_axle_response_golden_v1",
+  "cases": {
+    "mcpherson": [
+      {"name": "mcpherson_nominal", "bump_steer_eval": 0.012, "camber_compression_eval": -0.015},
+      {"name": "mcpherson_zero", "bump_steer_eval": 0.0, "camber_compression_eval": 0.0}
+    ],
+    "double_wishbone": [
+      {"name": "dw_low", "total_load": 1800.0, "wishbone_angle": -0.02},
+      {"name": "dw_high", "total_load": 7200.0, "wishbone_angle": 0.015}
+    ],
+    "multilink": [
+      {"name": "ml_3_links", "total_load": 2500.0, "link_count": 3},
+      {"name": "ml_5_links", "total_load": 6100.0, "link_count": 5}
+    ],
+    "pushrod": [
+      {"name": "pushrod_nominal", "total_load": 3200.0, "rocker_ratio": 1.15, "base_vertical_stiffness": 145000.0}
+    ],
+    "pullrod": [
+      {"name": "pullrod_nominal", "total_load": 3200.0, "rocker_ratio": 0.95, "base_vertical_stiffness": 145000.0}
+    ],
+    "air": [
+      {"name": "air_nominal", "total_load": 3800.0, "air_volume_liters": 7.0, "min_air_pressure": 1.2, "max_air_pressure": 8.5},
+      {"name": "air_clamped", "total_load": 120000.0, "air_volume_liters": 4.0, "min_air_pressure": 1.0, "max_air_pressure": 10.0}
+    ],
+    "axle": [
+      {"name": "axle_balanced", "load_left": 2500.0, "load_right": 2500.0, "axle_stiffness": 120000.0},
+      {"name": "axle_unbalanced", "load_left": 3400.0, "load_right": 1900.0, "axle_stiffness": 95000.0}
+    ],
+    "response": [
+      {"name": "response_left", "lateral_g": 0.85, "load_transfer_curve_eval": 0.32, "bump_steer_curve_eval": 0.01, "roll_center_curve_eval": 0.28},
+      {"name": "response_right", "lateral_g": -0.65, "load_transfer_curve_eval": 0.27, "bump_steer_curve_eval": -0.008, "roll_center_curve_eval": 0.22}
+    ]
+  }
+}
