@@ -67,3 +67,15 @@ Godot avalia curvas (`Curve.interpolate*`) e envia valores flat para o kernel Ru
 - `calculate_specific_geometry` dos tipos (McPherson, Double Wishbone, MultiLink, Pull/Push Rod, Air)
 - `SuspensionResponseSystem.calculate_dynamic_response` (parte pura)
 - `SolidAxle` sem scene lookup
+
+## Paridade de cálculo (Godot ↔ Rust)
+
+Enquanto a ponte runtime completa evolui, valide a equivalência numérica das fórmulas-base com:
+
+```bash
+python3 suspension/tools/check_suspension_core_parity.py
+```
+
+Fonte dos vetores de referência:
+- `suspension/shared/suspension_core_golden_v1.json`
+

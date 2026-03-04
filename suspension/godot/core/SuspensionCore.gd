@@ -1,6 +1,10 @@
 class_name SuspensionCore
 extends RefCounted
 
+# IMPORTANT:
+# This file must stay numerically aligned with:
+# `suspension/rust/core/SuspensionCoreKernel.rs`
+
 static func compute_deformation_clamped(deformation: Vector3, tire_induced_deformation: Vector3) -> Dictionary:
 	var raw := deformation + tire_induced_deformation
 	var clamped := Vector3(
@@ -26,13 +30,15 @@ static func compute_effective_radius(
 	dynamic_radius_mul: float = 1.0
 ) -> Dictionary:
 	var safe_stiffness := maxf(base_vertical_stiffness, 1e-6)
-	var stiffness_mul := maxf(vertical_stiffness_mul, 1e-6)
+	var max_deflection := maxf(tire_radius * 0.3, 1e-6)
+	var stiffness_mul := vertical_stiffness_mul if vertical_stiffness_mul > 0.0 else 1.0
 	var deflection := maxf(total_load, 0.0) / (safe_stiffness * stiffness_mul)
-	var base_radius := (tire_radius - deflection) * maxf(dynamic_radius_mul, 1e-6)
+	var base_radius := tire_radius - deflection
+	base_radius *= dynamic_radius_mul if dynamic_radius_mul > 0.0 else 1.0
 	var out_radius := clampf(base_radius, min_effective_radius, tire_radius * 1.2)
 	return {
 		"effective_radius": out_radius,
-		"deflection": deflection,
+		"deflection": clampf(deflection, 0.0, max_deflection),
 		"flags": {"radius_clamped": absf(base_radius - out_radius) > 1e-6}
 	}
 
