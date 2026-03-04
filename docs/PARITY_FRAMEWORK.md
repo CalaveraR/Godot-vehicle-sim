@@ -13,6 +13,7 @@ Current checks in the manifest:
 1. `suspension/tools/check_suspension_core_parity.py`
 2. `suspension/tools/check_suspension_type_axle_response_parity.py`
 3. `rust/tire_core` golden tests via `cargo test`
+4. `tires/tools/check_tire_core_reference_parity.py`
 
 ## How to add next modules (wheels/engine/tires extras)
 

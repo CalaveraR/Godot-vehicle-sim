@@ -12,6 +12,10 @@
     {
       "name": "tires_rust_golden",
       "command": "cd rust/tire_core && cargo test --quiet"
+    },
+    {
+      "name": "tires_gd_reference_vs_rust_core_math",
+      "command": "python3 tires/tools/check_tire_core_reference_parity.py"
     }
   ]
 }
