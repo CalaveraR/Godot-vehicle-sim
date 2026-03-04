@@ -1,5 +1,9 @@
 //! [CORE_RS] tire_core
 //! Deterministic Rust golden core for tire logic parity.
+pub mod contract;
+pub mod conventions;
+pub mod transients;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -233,7 +237,6 @@ pub fn compute_effective_radius_with_conventions(
         .min(tire_radius)
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Vec2 {
@@ -242,10 +245,19 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
-    pub fn length(self) -> f32 { (self.x * self.x + self.y * self.y).sqrt() }
+    pub fn length(self) -> f32 {
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
     pub fn normalized(self) -> Self {
         let len = self.length();
-        if len <= 1.0e-6 { Self::default() } else { Self { x: self.x / len, y: self.y / len } }
+        if len <= 1.0e-6 {
+            Self::default()
+        } else {
+            Self {
+                x: self.x / len,
+                y: self.y / len,
+            }
+        }
     }
 }
 
@@ -258,7 +270,9 @@ pub struct Vec3 {
 }
 
 impl Vec3 {
-    pub fn dot(self, rhs: Self) -> f32 { self.x * rhs.x + self.y * rhs.y + self.z * rhs.z }
+    pub fn dot(self, rhs: Self) -> f32 {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -279,7 +293,11 @@ impl Default for TireSampleMirror {
         Self {
             valid: false,
             contact_pos_local: Vec3::default(),
-            contact_normal_local: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+            contact_normal_local: Vec3 {
+                x: 0.0,
+                y: 1.0,
+                z: 0.0,
+            },
             contact_pos_ws: Vec3::default(),
             penetration: 0.0,
             confidence: 0.0,
@@ -317,7 +335,9 @@ impl Default for ContactPatchDataMirror {
 
 impl ContactPatchDataMirror {
     pub fn from_samples(samples: &[TireSampleMirror]) -> Self {
-        if samples.is_empty() { return Self::default(); }
+        if samples.is_empty() {
+            return Self::default();
+        }
 
         let mut weighted_pos_local = Vec3::default();
         let mut weighted_slip = Vec2::default();
@@ -353,7 +373,10 @@ impl ContactPatchDataMirror {
 
         let normalized_weights = normalize_weights(&raw_weights);
         if total_weight <= 0.0 || valid_count == 0.0 {
-            return Self { normalized_weights, ..Self::default() };
+            return Self {
+                normalized_weights,
+                ..Self::default()
+            };
         }
 
         Self {
@@ -375,7 +398,9 @@ impl ContactPatchDataMirror {
     }
 
     pub fn center_of_pressure_ws(&self, samples: &[TireSampleMirror]) -> Vec3 {
-        if samples.is_empty() || self.normalized_weights.is_empty() { return Vec3::default(); }
+        if samples.is_empty() || self.normalized_weights.is_empty() {
+            return Vec3::default();
+        }
         let mut acc = Vec3::default();
         for (s, w) in samples.iter().zip(self.normalized_weights.iter().copied()) {
             acc.x += s.contact_pos_ws.x * w;
@@ -444,7 +469,10 @@ pub fn step_wheel_mirror(
     out.fx = -patch.average_slip.x * out.fz * 0.5;
     out.fy = -patch.average_slip.y * out.fz * 0.7;
 
-    let mut tangential = Vec2 { x: out.fx, y: out.fy };
+    let mut tangential = Vec2 {
+        x: out.fx,
+        y: out.fy,
+    };
     let max_tangent = out.fz;
     if tangential.length() > max_tangent && tangential.length() > 0.0 {
         tangential = tangential.normalized();
@@ -455,7 +483,11 @@ pub fn step_wheel_mirror(
     out.mz = out.fy * patch.center_of_pressure_local.x;
 
     if dt > 0.0 {
-        let f = Vec3 { x: out.fx, y: out.fz, z: out.fy };
+        let f = Vec3 {
+            x: out.fx,
+            y: out.fz,
+            z: out.fy,
+        };
         let delta_e = (f.dot(current_velocity_ws) * dt).abs();
         if delta_e > config.energy_delta_limit {
             let scale = config.energy_delta_limit / delta_e.max(1.0e-6);
@@ -543,8 +575,16 @@ mod tests {
         let samples = vec![
             TireSampleMirror {
                 valid: true,
-                contact_pos_local: Vec3 { x: 0.2, y: 0.0, z: 0.0 },
-                contact_pos_ws: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+                contact_pos_local: Vec3 {
+                    x: 0.2,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                contact_pos_ws: Vec3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 penetration: 0.02,
                 confidence: 1.0,
                 slip_vector: Vec2 { x: 0.4, y: 0.0 },
@@ -552,8 +592,16 @@ mod tests {
             },
             TireSampleMirror {
                 valid: true,
-                contact_pos_local: Vec3 { x: -0.2, y: 0.0, z: 0.0 },
-                contact_pos_ws: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+                contact_pos_local: Vec3 {
+                    x: -0.2,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                contact_pos_ws: Vec3 {
+                    x: -1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 penetration: 0.02,
                 confidence: 1.0,
                 slip_vector: Vec2 { x: -0.4, y: 0.0 },
@@ -579,5 +627,4 @@ mod tests {
         assert!(out.fz < 1000.0);
         assert!(out.fz >= 0.0);
     }
-
 }

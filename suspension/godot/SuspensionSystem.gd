@@ -11,6 +11,12 @@ enum SUSPENSION_TYPE {
     AIR
 }
 
+enum CoreBackendMode {
+    GDSCRIPT,
+    RUST,
+    SHADOW
+}
+
 @export var suspension_type: SUSPENSION_TYPE = SUSPENSION_TYPE.MACPHERSON
 @export var base_vertical_stiffness = 150000.0
 @export var min_effective_radius = 0.1
@@ -34,6 +40,8 @@ enum SUSPENSION_TYPE {
 @export var response_to_lateral_flex_curve: Curve
 @export var response_to_longitudinal_flex_curve: Curve
 @export var vibration_absorption_curve: Curve
+@export var core_backend_mode: CoreBackendMode = CoreBackendMode.GDSCRIPT
+@export var core_shadow_epsilon: float = 0.001
 
 var effective_radius = 0.3
 var total_load = 0.0
@@ -46,6 +54,7 @@ var dynamic_toe = 0.0
 var tire_induced_deformation = Vector3.ZERO
 var absorbed_vibration = 0.0
 var raycast: RayCast
+var _suspension_core: SuspensionCore = SuspensionCore.new()
 
 func _ready():
     raycast = RayCast.new()
@@ -103,11 +112,60 @@ func update_suspension_geometry(total_load: float):
     if toe_variation_curve: 
         dynamic_toe = toe_variation_curve.interpolate(deformation.x)
     
-    apply_elastic_deformation()
+    _run_core_pipeline(total_load)
     update_raycast_direction()
+
+
+func _run_core_pipeline(load_value: float) -> void:
+    match core_backend_mode:
+        CoreBackendMode.RUST:
+            _run_core_rust_stub(load_value)
+        CoreBackendMode.SHADOW:
+            _run_core_shadow(load_value)
+        _:
+            _run_core_gd(load_value)
+
+func _run_core_gd(_load_value: float) -> void:
+    apply_elastic_deformation()
     update_effective_radius()
     update_relaxation_length()
     update_lateral_deformation()
+
+func _run_core_rust_stub(_load_value: float) -> void:
+    # Ponte Rust real será conectada via GDExtension/FFI, mantendo este orquestrador como autoridade.
+    _run_core_gd(_load_value)
+
+func _run_core_shadow(load_value: float) -> void:
+    var deformation_before := deformation
+    var effective_before := effective_radius
+    var relaxation_before := relaxation_factor
+    var lateral_before := lateral_deformation
+
+    _run_core_gd(load_value)
+    var gd_deformation := deformation
+    var gd_effective := effective_radius
+    var gd_relaxation := relaxation_factor
+    var gd_lateral := lateral_deformation
+
+    deformation = deformation_before
+    effective_radius = effective_before
+    relaxation_factor = relaxation_before
+    lateral_deformation = lateral_before
+
+    _run_core_rust_stub(load_value)
+
+    var def_delta := (gd_deformation - deformation).length()
+    var radius_delta := absf(gd_effective - effective_radius)
+    var relax_delta := absf(gd_relaxation - relaxation_factor)
+    var lat_delta := absf(gd_lateral - lateral_deformation)
+
+    if def_delta > core_shadow_epsilon or radius_delta > core_shadow_epsilon or relax_delta > core_shadow_epsilon or lat_delta > core_shadow_epsilon:
+        push_warning("[SUSP_SHADOW] delta > epsilon | def=%s radius=%s relax=%s lat=%s" % [def_delta, radius_delta, relax_delta, lat_delta])
+
+    deformation = gd_deformation
+    effective_radius = gd_effective
+    relaxation_factor = gd_relaxation
+    lateral_deformation = gd_lateral
 
 func apply_elastic_deformation():
     deformation += tire_induced_deformation

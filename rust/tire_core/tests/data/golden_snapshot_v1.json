@@ -1,0 +1,37 @@
+{
+  "version": "sim_calibration_v1",
+  "wheel": {
+    "omega": 98.0,
+    "steer_angle": 0.03,
+    "throttle": 0.7,
+    "brake": 0.0,
+    "velocity_local_x": 24.0,
+    "velocity_local_z": 0.6,
+    "tire_radius": 0.34
+  },
+  "samples": [
+    {
+      "penetration": 0.018,
+      "confidence": 0.95,
+      "slip_x": 0.06,
+      "slip_y": 0.02,
+      "position_local": [0.10, -0.30, 0.00],
+      "normal_local": [0.00, 1.00, 0.00]
+    },
+    {
+      "penetration": 0.020,
+      "confidence": 0.90,
+      "slip_x": 0.05,
+      "slip_y": 0.03,
+      "position_local": [-0.09, -0.30, 0.00],
+      "normal_local": [0.00, 1.00, 0.00]
+    }
+  ],
+  "expected": {
+    "fx": -62.638268,
+    "fy": -40.15874,
+    "fz": 2283.077,
+    "mz": -0.10297099,
+    "confidence": 1.0
+  }
+}

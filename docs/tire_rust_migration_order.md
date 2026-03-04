@@ -93,3 +93,15 @@ ajustes em runtime sejam fáceis e reproduzíveis entre as duas linguagens.
 ## 9) Referência operacional
 
 A referência de arquitetura em 3 camadas, pipeline por tick e contratos está em `docs/tire_runtime_architecture.md`.
+
+
+## 10) Escopo de duplicação (regra prática)
+
+- **Não duplicar em Rust**: `tires/runtime/*`, `tires/readers/*`, `tires/surface/*` (fase atual).
+- **Duplicar em Rust (núcleo puro)**:
+  - `tires/core/TireCore.gd` (solver numérico)
+  - `tires/TireCoreReference.gd` (funções puras de referência)
+  - parte numérica de `tires/aggregation/TireContactAggregation.gd` (normalização/agregação/CoP/slip)
+- **Opcional por hotspot**: `tires/pressurefieldsolver.gd`.
+
+A regra continua: integração de cena e aplicação de forças permanecem em Godot (single authority).

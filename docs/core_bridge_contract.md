@@ -118,6 +118,11 @@ O runtime deve suportar modos:
 
 `SHADOW_COMPARE` é o modo oficial para validar paridade sem alterar comportamento.
 
+No runtime atual isso aparece como enum exportado no coordinator:
+- `GDSCRIPT`
+- `RUST`
+- `SHADOW`
+
 ---
 
 ## 7) Error budget (macro vs micro)
@@ -134,6 +139,9 @@ Mudanças de conventions devem:
 - atualizar versão
 - manter compatibilidade de leitura
 - permitir reproduzir replays/testes
+
+Referência atual versionada:
+- `tires/shared/sim_calibration_v1.json`
 
 ---
 
